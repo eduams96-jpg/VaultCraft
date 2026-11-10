@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Game {
+  id               String    @id @default(cuid())
+  title            String
+  platform         String    @default("PC")
+  originType       String    @default("STEAM") // STEAM, EPIC, GOG, REPACK, EMULATOR, PHYSICAL, OTHER
+  repackGroup      String?   // FitGirl, DODI, ElAmigos, etc.
+  status           String    @default("BACKLOG") // BACKLOG, PLAYING, COMPLETED, ABANDONED, PAUSED
+  rating           Int?      // 1-10
+  coverUrl         String?
+  bannerUrl        String?
+  releaseYear      Int?
+  genres           String?   // "RPG, Action"
+  storageLocation  String?   // "SSD D:\Jogos", "HDD Externo 2TB"
+  executablePath   String?   // "D:\Jogos\Cyberpunk 2077\bin\x64\Cyberpunk2077.exe" ou "steam://rungameid/..."
+  saveLocation     String?   // "C:\Users\...\AppData\Roaming\Goldberg SteamEmu Saves"
+  diskSpace        String?   // "70 GB"
+  pcRequirements   String?   // Requisitos mínimos / recomendados
+  tags             String?   // "Comando, Splitscreen, Modded"
+  customCategories String?   // Categorias manuais personalizadas (ex: "Favoritos, Buzz PS2, Co-op")
+  timeToBeat       String?   // "História: ~25h | 100%: ~60h"
+  isInstalled      Boolean   @default(false)
+  isArchived       Boolean   @default(false) // Guardado no arquivo
+  isFavorite       Boolean   @default(false) // Destaque / Hall of Fame / Favorito
+  hasSavefile      Boolean   @default(false) // Tem ficheiro de save guardado
+  hasAchievements  Boolean   @default(false) // Tem ficheiro de conquistas / achievements
+  isPlatinum       Boolean   @default(false) // Platinado / 100% concluído
+  installNotes     String?   // "Notas de instalação, crack, configs, saves"
+  hoursPlayed      Float     @default(0)
+  userReview       String?   // Análise ou diário pessoal
+  screenshots      String?   // URLs ou caminhos de imagens separados por vírgula
+  
+  // Versão e Atualizações
+  gameVersion         String?   // Versão do jogo (ex: "v1.0.4.1", "Build 14205", "1.6.0")
+  versionDate         DateTime? // Data da versão atual do utilizador
+  latestKnownVersion  String?   // Versão mais recente oficial detetada
+  latestVersionDate   DateTime? // Data do último update/patch oficial
+  latestPatchNotesUrl String?   // Link oficial das notas de atualização
+  latestPatchTitle    String?   // Título do patch oficial (ex: "Patch 5.01 is live!")
+  isUpToDate          Boolean?  // null = não verificado, true = em dia, false = update disponível
+
+  isWishlist       Boolean   @default(false)
+  wishlistStatus   String?   // WAITING_CRACK, WAITING_SALE, WAITING_RELEASE
+  wishlistPriority String?   @default("MEDIUM") // HIGH, MEDIUM, LOW
+  targetPrice      Float?    // Preço alvo em Euros (ex: 19.99)
+  completionDate   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?  @default("📁")
+  color     String?  @default("#6366f1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Goal {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  targetCount  Int       @default(1)
+  currentCount Int       @default(0)
+  category     String?   @default("CUSTOM") // SHORT_GAMES, BACKLOG, HOURS, PLATINUM, CUSTOM
+  isCompleted  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

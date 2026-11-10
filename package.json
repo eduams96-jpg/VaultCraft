@@ -1,15 +1,22 @@
 {
-  "name": "temp_app",
+  "name": "game-tracker",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "6.19.3",
+    "howlongtobeat": "^1.8.0",
+    "lucide-react": "^1.68.0",
     "next": "16.4.5",
+    "prisma": "6.19.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

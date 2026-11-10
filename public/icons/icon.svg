@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="#09090b" />
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)" filter="url(#shadow)" opacity="0.95" />
+
+  <!-- Gamepad icon -->
+  <g transform="translate(106, 126)" fill="#ffffff">
+    <path d="M260 20C240 20 220 28 200 40C180 28 160 20 140 20C60 20 0 80 0 160C0 220 40 260 90 260C115 260 135 245 150 225L170 195C175 190 185 185 195 185H205C215 185 225 190 230 195L250 225C265 245 285 260 310 260C360 260 400 220 400 160C400 80 340 20 260 20Z" opacity="0.95"/>
+    <!-- D-Pad -->
+    <path d="M90 90H110V110H90Z" fill="#18181b"/>
+    <path d="M70 110H130V130H70Z" fill="#18181b"/>
+    <path d="M90 130H110V150H90Z" fill="#18181b"/>
+    <!-- Action buttons -->
+    <circle cx="290" cy="100" r="12" fill="#18181b"/>
+    <circle cx="320" cy="125" r="12" fill="#18181b"/>
+    <circle cx="260" cy="125" r="12" fill="#18181b"/>
+    <circle cx="290" cy="150" r="12" fill="#18181b"/>
+  </g>
+</svg>
