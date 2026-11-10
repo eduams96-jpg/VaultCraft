@@ -76,3 +76,42 @@ model Goal {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
+
+model MediaItem {
+  id               String    @id @default(cuid())
+  title            String
+  originalTitle    String?
+  type             String    @default("MOVIE") // MOVIE, SERIES, ANIME
+  status           String    @default("PLAN_TO_WATCH") // PLAN_TO_WATCH, WATCHING, COMPLETED, PAUSED, DROPPED
+  rating           Int?      // 1-10
+  posterUrl        String?
+  backdropUrl      String?
+  releaseYear      Int?
+  genres           String?   // "Ação, Ficção Científica, Drama"
+  synopsis         String?
+  director         String?   // Realizador ou Criador
+  cast             String?   // Atores principais
+  durationMinutes  Int?      // Duração em minutos (para filmes ou duração média do episódio)
+  
+  // Séries e Animes
+  totalSeasons     Int?      @default(1)
+  totalEpisodes    Int?
+  currentSeason    Int?      @default(1)
+  currentEpisode   Int?      @default(0)
+
+  // Armazenamento, Qualidade & Origem
+  quality          String?   // "4K HDR", "1080p Remux", "Blu-Ray", "Web-DL", "720p"
+  storageLocation  String?   // "D:\Filmes\Dune.2024.2160p" ou "NAS \\MediaServer\Series"
+  sourceOrigin     String?   @default("LOCAL") // LOCAL, STREAMING, PHYSICAL
+  streamingService String?   // "Netflix", "HBO Max", "Disney+", "Prime Video", "Apple TV"
+  
+  isFavorite       Boolean   @default(false)
+  userReview       String?
+  customTags       String?
+  imdbId           String?
+  tmdbId           Int?
+  
+  completionDate   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}

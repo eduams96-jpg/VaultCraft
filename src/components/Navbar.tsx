@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Loader2,
   Radio,
+  Film,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -39,6 +40,10 @@ interface NavbarProps {
   isSyncingSteam?: boolean;
   activeTab?: "COLLECTION" | "WISHLIST";
   onSelectTab?: (tab: "COLLECTION" | "WISHLIST") => void;
+  activeVault?: "GAMES" | "MEDIA";
+  onSelectVault?: (vault: "GAMES" | "MEDIA") => void;
+  mediaCount?: number;
+  onOpenAddMediaModal?: () => void;
   totalGames: number;
   wishlistCount: number;
 }
@@ -61,6 +66,10 @@ export function Navbar({
   isSyncingSteam = false,
   activeTab = "COLLECTION",
   onSelectTab,
+  activeVault = "GAMES",
+  onSelectVault,
+  mediaCount = 0,
+  onOpenAddMediaModal,
   totalGames,
   wishlistCount,
 }: NavbarProps) {
@@ -104,60 +113,103 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Right Actions: Organized & Streamlined */}
-        <div className="flex items-center gap-2">
-          {/* Wishlist / Radar */}
+        {/* Central Vault Switcher: Games vs Movies/Series */}
+        <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800 shadow-inner">
           <button
             type="button"
-            onClick={() => {
-              if (onSelectTab) {
-                onSelectTab(activeTab === "WISHLIST" ? "COLLECTION" : "WISHLIST");
-              } else {
-                onOpenWishlistModal();
-              }
-            }}
-            className={`px-3 py-2 border text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer relative ${
-              activeTab === "WISHLIST"
-                ? "bg-pink-600 text-white border-pink-500 shadow-md shadow-pink-600/30"
-                : "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
+            onClick={() => onSelectVault?.("GAMES")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeVault === "GAMES"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-zinc-400 hover:text-white"
             }`}
-            title="Wishlist e Radar de Jogos"
           >
-            <Bookmark className={`w-4 h-4 ${activeTab === "WISHLIST" ? "text-white" : "text-pink-400"}`} />
-            <span className="hidden sm:inline">Wishlist</span>
-            {wishlistCount > 0 && (
-              <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                activeTab === "WISHLIST" ? "bg-white text-pink-600" : "bg-pink-500 text-white"
-              }`}>
-                {wishlistCount}
-              </span>
-            )}
+            <Gamepad2 className="w-3.5 h-3.5" />
+            <span>Jogos</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              activeVault === "GAMES" ? "bg-indigo-700 text-white" : "bg-zinc-800 text-zinc-400"
+            }`}>
+              {totalGames}
+            </span>
           </button>
 
-          {/* Metas & Desafios Button (1-Click) */}
-          {onOpenGoalsModal && (
-            <button
-              type="button"
-              onClick={onOpenGoalsModal}
-              className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-indigo-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Metas & Desafios de Backlog"
-            >
-              <Target className="w-4 h-4 text-indigo-400" />
-              <span className="hidden lg:inline">Metas</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onSelectVault?.("MEDIA")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeVault === "MEDIA"
+                ? "bg-purple-600 text-white shadow-md shadow-purple-600/30"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <Film className={`w-3.5 h-3.5 ${activeVault === "MEDIA" ? "text-white" : "text-purple-400"}`} />
+            <span>Filmes & Séries</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              activeVault === "MEDIA" ? "bg-purple-700 text-white" : "bg-zinc-800 text-zinc-400"
+            }`}>
+              {mediaCount}
+            </span>
+          </button>
+        </div>
 
-          {/* Gamer Card Button (1-Click) */}
-          {onOpenGamerCardModal && (
-            <button
-              type="button"
-              onClick={onOpenGamerCardModal}
-              className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/50 text-amber-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Gamer Card & Exportar (CSV/PDF)"
-            >
-              <Share2 className="w-4 h-4 text-amber-400" />
-              <span className="hidden lg:inline">Gamer Card</span>
-            </button>
+        {/* Right Actions: Organized & Streamlined */}
+        <div className="flex items-center gap-2">
+          {activeVault === "GAMES" && (
+            <>
+              {/* Wishlist / Radar */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectTab) {
+                    onSelectTab(activeTab === "WISHLIST" ? "COLLECTION" : "WISHLIST");
+                  } else {
+                    onOpenWishlistModal();
+                  }
+                }}
+                className={`px-3 py-2 border text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer relative ${
+                  activeTab === "WISHLIST"
+                    ? "bg-pink-600 text-white border-pink-500 shadow-md shadow-pink-600/30"
+                    : "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
+                }`}
+                title="Wishlist e Radar de Jogos"
+              >
+                <Bookmark className={`w-4 h-4 ${activeTab === "WISHLIST" ? "text-white" : "text-pink-400"}`} />
+                <span className="hidden sm:inline">Wishlist</span>
+                {wishlistCount > 0 && (
+                  <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                    activeTab === "WISHLIST" ? "bg-white text-pink-600" : "bg-pink-500 text-white"
+                  }`}>
+                    {wishlistCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Metas & Desafios Button (1-Click) */}
+              {onOpenGoalsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenGoalsModal}
+                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-indigo-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="Metas & Desafios de Backlog"
+                >
+                  <Target className="w-4 h-4 text-indigo-400" />
+                  <span className="hidden lg:inline">Metas</span>
+                </button>
+              )}
+
+              {/* Gamer Card Button (1-Click) */}
+              {onOpenGamerCardModal && (
+                <button
+                  type="button"
+                  onClick={onOpenGamerCardModal}
+                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/50 text-amber-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="Gamer Card & Exportar (CSV/PDF)"
+                >
+                  <Share2 className="w-4 h-4 text-amber-400" />
+                  <span className="hidden lg:inline">Gamer Card</span>
+                </button>
+              )}
+            </>
           )}
 
           {/* Batch Import Button (Prominent) */}
@@ -385,14 +437,18 @@ export function Navbar({
             )}
           </div>
 
-          {/* Add Game Button (Primary) */}
+          {/* Add Game / Media Button (Primary) */}
           <button
             type="button"
-            onClick={onOpenAddModal}
-            className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+            onClick={activeVault === "MEDIA" ? onOpenAddMediaModal : onOpenAddModal}
+            className={`px-3.5 sm:px-4 py-2 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer ${
+              activeVault === "MEDIA"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-600/30"
+                : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/30"
+            }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Adicionar</span>
+            <span>{activeVault === "MEDIA" ? "Novo Título" : "Adicionar"}</span>
           </button>
         </div>
       </div>

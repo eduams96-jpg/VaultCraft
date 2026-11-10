@@ -24,7 +24,13 @@ import { BacklogGoalsModal } from "@/components/BacklogGoalsModal";
 import { GamerWrapUpModal } from "@/components/GamerWrapUpModal";
 import { GamerCardModal } from "@/components/GamerCardModal";
 import { VersionRadarModal } from "@/components/VersionRadarModal";
-import { Loader2, Plus, Ghost, Gamepad2, Bookmark } from "lucide-react";
+import { MediaItem } from "@/types/media";
+import { MediaCard } from "@/components/MediaCard";
+import { MediaStatsBar } from "@/components/MediaStatsBar";
+import { MediaFilterBar } from "@/components/MediaFilterBar";
+import { MediaFormModal } from "@/components/MediaFormModal";
+import { MediaDetailModal } from "@/components/MediaDetailModal";
+import { Loader2, Plus, Ghost, Gamepad2, Bookmark, Film, Tv, Clapperboard } from "lucide-react";
 
 export default function HomePage() {
   const [games, setGames] = useState<GameItem[]>([]);
@@ -74,6 +80,24 @@ export default function HomePage() {
 
   const [gameToEdit, setGameToEdit] = useState<GameItem | null>(null);
   const [gameDetail, setGameDetail] = useState<GameItem | null>(null);
+
+  // Top-Level Entertainment Vault (GAMES vs MEDIA)
+  const [activeVault, setActiveVault] = useState<"GAMES" | "MEDIA">("GAMES");
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
+  // Media Filters
+  const [mediaSearch, setMediaSearch] = useState("");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState("ALL");
+  const [mediaStatusFilter, setMediaStatusFilter] = useState("ALL");
+  const [mediaQualityFilter, setMediaQualityFilter] = useState("ALL");
+  const [mediaFavoriteOnly, setMediaFavoriteOnly] = useState(false);
+  const [mediaSortBy, setMediaSortBy] = useState("updatedAt");
+
+  // Media Modals
+  const [isMediaFormOpen, setIsMediaFormOpen] = useState(false);
+  const [mediaToEdit, setMediaToEdit] = useState<MediaItem | null>(null);
+  const [mediaDetail, setMediaDetail] = useState<MediaItem | null>(null);
 
   // Status Notification Toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "error" } | null>(
@@ -130,11 +154,28 @@ export default function HomePage() {
     }
   }, []);
 
+  // Fetch media (movies & series)
+  const fetchMediaItems = useCallback(async () => {
+    try {
+      setMediaLoading(true);
+      const res = await fetch("/api/media");
+      if (res.ok) {
+        const data = await res.json();
+        setMediaItems(data);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar filmes e séries:", err);
+    } finally {
+      setMediaLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchGames();
     fetchCategories();
     fetchGoals();
-  }, [fetchGames, fetchCategories, fetchGoals]);
+    fetchMediaItems();
+  }, [fetchGames, fetchCategories, fetchGoals, fetchMediaItems]);
 
   // Wishlist count
   const wishlistCount = useMemo(() => {
@@ -906,6 +947,158 @@ export default function HomePage() {
     }
   };
 
+  // Filtered & Sorted Media items (Movies & Series)
+  const filteredMedia = useMemo(() => {
+    return mediaItems
+      .filter((m) => {
+        if (mediaSearch.trim()) {
+          const q = mediaSearch.toLowerCase();
+          const match =
+            m.title.toLowerCase().includes(q) ||
+            m.genres?.toLowerCase().includes(q) ||
+            m.cast?.toLowerCase().includes(q) ||
+            m.director?.toLowerCase().includes(q);
+          if (!match) return false;
+        }
+        if (mediaTypeFilter !== "ALL" && m.type !== mediaTypeFilter) return false;
+        if (mediaStatusFilter !== "ALL" && m.status !== mediaStatusFilter) return false;
+        if (mediaQualityFilter !== "ALL" && m.quality !== mediaQualityFilter) return false;
+        if (mediaFavoriteOnly && !m.isFavorite) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (mediaSortBy === "title") return a.title.localeCompare(b.title);
+        if (mediaSortBy === "rating") return (b.rating || 0) - (a.rating || 0);
+        if (mediaSortBy === "releaseYear") return (b.releaseYear || 0) - (a.releaseYear || 0);
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }, [mediaItems, mediaSearch, mediaTypeFilter, mediaStatusFilter, mediaQualityFilter, mediaFavoriteOnly, mediaSortBy]);
+
+  // Media CRUD Handlers
+  const handleSaveMedia = async (data: Partial<MediaItem>) => {
+    try {
+      if (mediaToEdit) {
+        const res = await fetch(`/api/media/${mediaToEdit.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+          if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
+          showToast(`"${updated.title}" atualizado com sucesso!`);
+        }
+      } else {
+        const res = await fetch("/api/media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setMediaItems((prev) => [created, ...prev]);
+          showToast(`"${created.title}" adicionado à coleção!`);
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast("Erro ao guardar filme/série.", "error");
+    }
+  };
+
+  const handleDeleteMedia = async (media: MediaItem) => {
+    try {
+      const res = await fetch(`/api/media/${media.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setMediaItems((prev) => prev.filter((m) => m.id !== media.id));
+        if (mediaDetail && mediaDetail.id === media.id) setMediaDetail(null);
+        showToast(`"${media.title}" removido com sucesso.`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erro ao eliminar.", "error");
+    }
+  };
+
+  const handleUpdateMediaStatus = async (media: MediaItem, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/media/${media.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
+        showToast(`Estado alterado para "${newStatus}"!`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleMediaFavorite = async (media: MediaItem) => {
+    try {
+      const res = await fetch(`/api/media/${media.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isFavorite: !media.isFavorite }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
+        showToast(updated.isFavorite ? `⭐ "${updated.title}" adicionado aos favoritos!` : `Removido dos favoritos.`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleIncrementEpisode = async (media: MediaItem) => {
+    try {
+      const currentEp = media.currentEpisode || 0;
+      const nextEp = currentEp + 1;
+      const res = await fetch(`/api/media/${media.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentEpisode: nextEp,
+          status: media.status === "PLAN_TO_WATCH" ? "WATCHING" : media.status,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
+        showToast(`Episódio ${nextEp} marcado como visto!`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDecrementEpisode = async (media: MediaItem) => {
+    try {
+      const currentEp = media.currentEpisode || 0;
+      const prevEp = Math.max(0, currentEp - 1);
+      const res = await fetch(`/api/media/${media.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentEpisode: prevEp }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500 selection:text-white pb-20">
       {/* Toast Notification */}
@@ -924,6 +1117,13 @@ export default function HomePage() {
 
       {/* Top Navbar */}
       <Navbar
+        activeVault={activeVault}
+        onSelectVault={setActiveVault}
+        mediaCount={mediaItems.length}
+        onOpenAddMediaModal={() => {
+          setMediaToEdit(null);
+          setIsMediaFormOpen(true);
+        }}
         activeTab={mainTab}
         onSelectTab={setMainTab}
         totalGames={collectionGames.length}
@@ -954,7 +1154,113 @@ export default function HomePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Workspace Tab Switcher */}
+        {activeVault === "MEDIA" ? (
+          <div>
+            {/* Media Bird's eye statistics */}
+            <MediaStatsBar
+              mediaItems={mediaItems}
+              activeTypeFilter={mediaTypeFilter}
+              onFilterByType={setMediaTypeFilter}
+              activeStatusFilter={mediaStatusFilter}
+              onFilterByStatus={setMediaStatusFilter}
+            />
+
+            {/* Media Filter & Search Bar */}
+            <MediaFilterBar
+              search={mediaSearch}
+              onSearchChange={setMediaSearch}
+              typeFilter={mediaTypeFilter}
+              onTypeFilterChange={setMediaTypeFilter}
+              statusFilter={mediaStatusFilter}
+              onStatusFilterChange={setMediaStatusFilter}
+              qualityFilter={mediaQualityFilter}
+              onQualityFilterChange={setMediaQualityFilter}
+              favoriteOnly={mediaFavoriteOnly}
+              onFavoriteOnlyToggle={() => setMediaFavoriteOnly(!mediaFavoriteOnly)}
+              sortBy={mediaSortBy}
+              onSortByChange={setMediaSortBy}
+            />
+
+            {/* Loading */}
+            {mediaLoading && (
+              <div className="py-24 flex flex-col items-center justify-center text-zinc-500 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                <p className="text-sm">A carregar filmes e séries...</p>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!mediaLoading && mediaItems.length === 0 && (
+              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8">
+                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                  <Film className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">A tua coleção de Cinema & TV está pronta!</h3>
+                <p className="text-sm text-zinc-400 max-w-md mb-6">
+                  Começa a adicionar os teus filmes favoritos, séries que estás a acompanhar ou animes com metadados e posters automáticos.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMediaToEdit(null);
+                    setIsMediaFormOpen(true);
+                  }}
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar Primeiro Filme / Série
+                </button>
+              </div>
+            )}
+
+            {/* No matches for search/filters */}
+            {!mediaLoading && mediaItems.length > 0 && filteredMedia.length === 0 && (
+              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/30 border border-zinc-800/80 rounded-3xl p-8">
+                <div className="text-4xl mb-3">🔍</div>
+                <h3 className="text-lg font-bold text-zinc-200 mb-1">Nenhum título encontrado</h3>
+                <p className="text-xs text-zinc-400 max-w-sm mb-4">
+                  Nenhum filme ou série corresponde aos filtros atuais. Tenta pesquisar outro termo ou limpar os filtros.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMediaSearch("");
+                    setMediaTypeFilter("ALL");
+                    setMediaStatusFilter("ALL");
+                    setMediaQualityFilter("ALL");
+                    setMediaFavoriteOnly(false);
+                  }}
+                  className="text-xs text-purple-400 hover:text-purple-300 font-semibold underline cursor-pointer"
+                >
+                  Redefinir filtros
+                </button>
+              </div>
+            )}
+
+            {/* Media Grid */}
+            {!mediaLoading && filteredMedia.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
+                {filteredMedia.map((item) => (
+                  <MediaCard
+                    key={item.id}
+                    media={item}
+                    onClick={() => setMediaDetail(item)}
+                    onEdit={() => {
+                      setMediaToEdit(item);
+                      setIsMediaFormOpen(true);
+                    }}
+                    onDelete={() => handleDeleteMedia(item)}
+                    onToggleFavorite={handleToggleMediaFavorite}
+                    onUpdateStatus={(m, st) => handleUpdateMediaStatus(m, st)}
+                    onIncrementEpisode={handleIncrementEpisode}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Workspace Tab Switcher */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-2 p-1.5 bg-zinc-900/90 border border-zinc-800 rounded-2xl shadow-inner">
             <button
@@ -1225,10 +1531,12 @@ export default function HomePage() {
             )}
           </>
         )}
+          </>
+        )}
       </main>
 
       {/* Floating Bulk Action Bar */}
-      {mainTab === "COLLECTION" && (
+      {activeVault === "GAMES" && mainTab === "COLLECTION" && (
         <BulkActionBar
           selectedCount={selectedGameIds.length}
           totalFilteredCount={filteredGames.length}
@@ -1390,6 +1698,32 @@ export default function HomePage() {
           setGameDetail(game);
         }}
         onRefreshGames={fetchGames}
+      />
+
+      {/* Media Add / Edit Modal */}
+      <MediaFormModal
+        isOpen={isMediaFormOpen}
+        onClose={() => {
+          setIsMediaFormOpen(false);
+          setMediaToEdit(null);
+        }}
+        onSave={handleSaveMedia}
+        initialMedia={mediaToEdit}
+      />
+
+      {/* Media Detail Modal */}
+      <MediaDetailModal
+        media={mediaDetail}
+        onClose={() => setMediaDetail(null)}
+        onEdit={(m) => {
+          setMediaToEdit(m);
+          setIsMediaFormOpen(true);
+        }}
+        onDelete={handleDeleteMedia}
+        onUpdateStatus={handleUpdateMediaStatus}
+        onIncrementEpisode={handleIncrementEpisode}
+        onDecrementEpisode={handleDecrementEpisode}
+        onToggleFavorite={handleToggleMediaFavorite}
       />
     </div>
   );
