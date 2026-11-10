@@ -68,7 +68,7 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-lg font-bold text-white">Cópia de Segurança & Restauro</h2>
+            <h2 className="text-lg font-bold text-white">Cópia de Segurança Unificada (Jogos + Filmes + Séries)</h2>
           </div>
           <button
             onClick={onClose}
@@ -83,10 +83,10 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
           <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-3">
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-bold text-zinc-100">Exportar Coleção (Download)</h3>
+              <h3 className="text-sm font-bold text-zinc-100">Exportar Toda a Coleção (Download JSON)</h3>
             </div>
             <p className="text-xs text-zinc-400">
-              Descarrega um ficheiro `.json` com todos os teus jogos, capas, notas de instalação, progresso e caminhos locais.
+              Descarrega um ficheiro `.json` único contendo tudo: a tua biblioteca de <strong>Jogos</strong>, a videoteca de <strong>Filmes & Séries</strong>, Categorias personalizadas, Metas de backlog e caminhos locais.
             </p>
             <button
               type="button"
@@ -94,7 +94,7 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
               className="w-full py-2.5 px-4 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer border border-zinc-700"
             >
               <Download className="w-4 h-4" />
-              Descarregar Backup (.json)
+              Descarregar Backup Completo (.json)
             </button>
           </div>
 
@@ -102,10 +102,10 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
           <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-3">
             <div className="flex items-center gap-2">
               <Upload className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-zinc-100">Restaurar de Ficheiro</h3>
+              <h3 className="text-sm font-bold text-zinc-100">Restaurar Toda a Coleção de Ficheiro</h3>
             </div>
             <p className="text-xs text-zinc-400">
-              Se mudares de PC ou formatares, escolhe o teu ficheiro `.json` para recuperar toda a coleção sem duplicar os existentes.
+              Se mudares de PC ou formatares, escolhe o teu ficheiro `.json` para recuperar tanto os Jogos como os Filmes e Séries sem duplicar os existentes.
             </p>
 
             <label className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-indigo-600/25">

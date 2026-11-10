@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MediaItem } from "@/types/media";
+import { MediaItem, getMediaTypeBadge } from "@/types/media";
 import {
   X,
   Star,
@@ -113,13 +113,15 @@ export function MediaDetailModal({
             {/* Main Info */}
             <div className="flex-1 min-w-0 pt-2 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider border ${
-                  media.type === "MOVIE"
-                    ? "bg-purple-950/60 text-purple-300 border-purple-500/40"
-                    : "bg-sky-950/60 text-sky-300 border-sky-500/40"
-                }`}>
-                  {media.type === "MOVIE" ? "🎬 Filme" : media.type === "SERIES" ? "📺 Série" : "🎌 Anime"}
-                </span>
+                {(() => {
+                  const badge = getMediaTypeBadge(media.type);
+                  return (
+                    <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border flex items-center gap-1.5 ${badge.color}`}>
+                      <span>{badge.icon}</span>
+                      <span>{badge.label}</span>
+                    </span>
+                  );
+                })()}
 
                 <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border ${currentStatus.color}`}>
                   {currentStatus.label}
@@ -211,7 +213,7 @@ export function MediaDetailModal({
           </div>
 
           {/* Series Episode Tracker */}
-          {media.type !== "MOVIE" && (
+          {(media.type === "SERIES" || media.type === "CARTOON" || media.type === "PT_SERIES" || media.type === "ANIME") && (
             <div className="mt-4 p-4 bg-purple-950/20 border border-purple-500/30 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">

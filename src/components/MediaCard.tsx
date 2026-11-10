@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MediaItem } from "@/types/media";
+import { MediaItem, getMediaTypeBadge } from "@/types/media";
 import {
   Star,
   Film,
@@ -24,6 +24,7 @@ interface MediaCardProps {
   onToggleFavorite?: (media: MediaItem) => void;
   onUpdateStatus?: (media: MediaItem, newStatus: string) => void;
   onIncrementEpisode?: (media: MediaItem) => void;
+  compact?: boolean;
 }
 
 export function MediaCard({
@@ -34,6 +35,7 @@ export function MediaCard({
   onToggleFavorite,
   onUpdateStatus,
   onIncrementEpisode,
+  compact = false,
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -84,15 +86,15 @@ export function MediaCard({
         {/* Top Badges overlay */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5 z-10">
           {/* Type Badge */}
-          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase border backdrop-blur-md shadow-md ${
-            media.type === "MOVIE"
-              ? "bg-purple-950/80 text-purple-300 border-purple-500/40"
-              : media.type === "SERIES"
-              ? "bg-sky-950/80 text-sky-300 border-sky-500/40"
-              : "bg-pink-950/80 text-pink-300 border-pink-500/40"
-          }`}>
-            {media.type === "MOVIE" ? "Filme" : media.type === "SERIES" ? "Série" : "Anime"}
-          </span>
+          {(() => {
+            const badge = getMediaTypeBadge(media.type);
+            return (
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider border backdrop-blur-md shadow-md flex items-center gap-1 ${badge.color}`}>
+                <span>{badge.icon}</span>
+                <span>{badge.label}</span>
+              </span>
+            );
+          })()}
 
           <div className="flex items-center gap-1.5">
             {/* Favorite Star Button */}

@@ -284,7 +284,7 @@ export function MediaFormModal({
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">Tipo</label>
+              <label className="text-xs font-semibold text-zinc-300">Tipo / Categoria</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as MediaType)}
@@ -292,6 +292,10 @@ export function MediaFormModal({
               >
                 <option value="MOVIE">🎬 Filme</option>
                 <option value="SERIES">📺 Série</option>
+                <option value="ANIMATION_MOVIE">🎨 Filme Animação</option>
+                <option value="CARTOON">🧸 Desenho Animado</option>
+                <option value="PT_MOVIE">🇵🇹 Filme Português</option>
+                <option value="PT_SERIES">🇵🇹 Série Portuguesa</option>
                 <option value="ANIME">🎌 Anime</option>
               </select>
             </div>
@@ -339,12 +343,12 @@ export function MediaFormModal({
             </div>
           </div>
 
-          {/* Series Tracking (if series or anime) */}
-          {type !== "MOVIE" && (
+          {/* Series Tracking (if series, cartoon, or anime) */}
+          {(type === "SERIES" || type === "CARTOON" || type === "PT_SERIES" || type === "ANIME") && (
             <div className="p-3.5 bg-purple-950/20 border border-purple-500/30 rounded-2xl space-y-3">
               <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
                 <Tv className="w-4 h-4 text-purple-400" />
-                Progresso da Série / Temporadas
+                Progresso de Episódios / Temporadas
               </span>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">

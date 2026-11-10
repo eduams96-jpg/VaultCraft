@@ -30,6 +30,8 @@ import { MediaStatsBar } from "@/components/MediaStatsBar";
 import { MediaFilterBar } from "@/components/MediaFilterBar";
 import { MediaFormModal } from "@/components/MediaFormModal";
 import { MediaDetailModal } from "@/components/MediaDetailModal";
+import { MediaListView } from "@/components/MediaListView";
+import { MediaScanModal } from "@/components/MediaScanModal";
 import { Loader2, Plus, Ghost, Gamepad2, Bookmark, Film, Tv, Clapperboard } from "lucide-react";
 
 export default function HomePage() {
@@ -93,9 +95,11 @@ export default function HomePage() {
   const [mediaQualityFilter, setMediaQualityFilter] = useState("ALL");
   const [mediaFavoriteOnly, setMediaFavoriteOnly] = useState(false);
   const [mediaSortBy, setMediaSortBy] = useState("updatedAt");
+  const [mediaViewMode, setMediaViewMode] = useState<"grid" | "compact" | "list">("grid");
 
   // Media Modals
   const [isMediaFormOpen, setIsMediaFormOpen] = useState(false);
+  const [isMediaScanOpen, setIsMediaScanOpen] = useState(false);
   const [mediaToEdit, setMediaToEdit] = useState<MediaItem | null>(null);
   const [mediaDetail, setMediaDetail] = useState<MediaItem | null>(null);
 
@@ -947,6 +951,15 @@ export default function HomePage() {
     }
   };
 
+  // Media Category Counts for tabs
+  const mediaCategoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: mediaItems.length };
+    for (const m of mediaItems) {
+      counts[m.type] = (counts[m.type] || 0) + 1;
+    }
+    return counts;
+  }, [mediaItems]);
+
   // Filtered & Sorted Media items (Movies & Series)
   const filteredMedia = useMemo(() => {
     return mediaItems
@@ -1179,6 +1192,10 @@ export default function HomePage() {
               onFavoriteOnlyToggle={() => setMediaFavoriteOnly(!mediaFavoriteOnly)}
               sortBy={mediaSortBy}
               onSortByChange={setMediaSortBy}
+              viewMode={mediaViewMode}
+              onViewModeChange={setMediaViewMode}
+              categoryCounts={mediaCategoryCounts}
+              onOpenScanModal={() => setIsMediaScanOpen(true)}
             />
 
             {/* Loading */}
@@ -1237,8 +1254,8 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Media Grid */}
-            {!mediaLoading && filteredMedia.length > 0 && (
+            {/* Media Grid Normal */}
+            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "grid" && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
                 {filteredMedia.map((item) => (
                   <MediaCard
@@ -1256,6 +1273,44 @@ export default function HomePage() {
                   />
                 ))}
               </div>
+            )}
+
+            {/* Media Grid Compacto (Densa, mais títulos no ecrã) */}
+            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "compact" && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3">
+                {filteredMedia.map((item) => (
+                  <MediaCard
+                    key={item.id}
+                    media={item}
+                    compact={true}
+                    onClick={() => setMediaDetail(item)}
+                    onEdit={() => {
+                      setMediaToEdit(item);
+                      setIsMediaFormOpen(true);
+                    }}
+                    onDelete={() => handleDeleteMedia(item)}
+                    onToggleFavorite={handleToggleMediaFavorite}
+                    onUpdateStatus={(m, st) => handleUpdateMediaStatus(m, st)}
+                    onIncrementEpisode={handleIncrementEpisode}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Media Tabela / Lista Compacta */}
+            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "list" && (
+              <MediaListView
+                mediaItems={filteredMedia}
+                onSelectMedia={(item) => setMediaDetail(item)}
+                onEditMedia={(item) => {
+                  setMediaToEdit(item);
+                  setIsMediaFormOpen(true);
+                }}
+                onDeleteMedia={handleDeleteMedia}
+                onToggleFavorite={handleToggleMediaFavorite}
+                onUpdateStatus={handleUpdateMediaStatus}
+                onIncrementEpisode={handleIncrementEpisode}
+              />
             )}
           </div>
         ) : (
@@ -1724,6 +1779,16 @@ export default function HomePage() {
         onIncrementEpisode={handleIncrementEpisode}
         onDecrementEpisode={handleDecrementEpisode}
         onToggleFavorite={handleToggleMediaFavorite}
+      />
+
+      {/* Media Folder Scanner Modal */}
+      <MediaScanModal
+        isOpen={isMediaScanOpen}
+        onClose={() => setIsMediaScanOpen(false)}
+        onImportSuccess={async () => {
+          await fetchMediaItems();
+          showToast("Títulos importados com sucesso para a videoteca!");
+        }}
       />
     </div>
   );
