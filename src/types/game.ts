@@ -59,6 +59,7 @@ export interface GameItem {
   latestPatchNotesUrl?: string | null;
   latestPatchTitle?: string | null;
   isUpToDate?: boolean | null;
+  externalLink?: string | null;
   completionDate?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -84,6 +85,7 @@ export interface GameMetadataResult {
   pcRequirements?: string;
   screenshots?: string;
   timeToBeat?: string;
+  externalLink?: string;
 }
 
 export interface GoalItem {

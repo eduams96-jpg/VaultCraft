@@ -6,6 +6,18 @@ import {
   type ExistingGameRef,
 } from "@/lib/gameNormalization";
 
+const SORTABLE_FIELDS = new Set([
+  "updatedAt",
+  "createdAt",
+  "title",
+  "rating",
+  "hoursPlayed",
+  "releaseYear",
+  "completionDate",
+  "platform",
+  "status",
+]);
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,7 +28,8 @@ export async function GET(request: Request) {
     const customCategory = searchParams.get("customCategory") || "";
     const installed = searchParams.get("installed");
     const archived = searchParams.get("archived");
-    const sortBy = searchParams.get("sortBy") || "updatedAt";
+    const requestedSort = searchParams.get("sortBy") || "updatedAt";
+    const sortBy = SORTABLE_FIELDS.has(requestedSort) ? requestedSort : "updatedAt";
     const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,7 +80,10 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(games);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.digest === "NEXT_PRERENDER_INTERRUPTED") {
+      throw error;
+    }
     console.error("Failed to fetch games:", error);
     return NextResponse.json({ error: "Erro ao procurar jogos" }, { status: 500 });
   }
@@ -142,6 +158,7 @@ export async function POST(request: Request) {
         latestPatchNotesUrl: body.latestPatchNotesUrl?.trim() || null,
         latestPatchTitle: body.latestPatchTitle?.trim() || null,
         isUpToDate: body.isUpToDate !== undefined ? (body.isUpToDate === null ? null : Boolean(body.isUpToDate)) : null,
+        externalLink: body.externalLink?.trim() || null,
         isWishlist: Boolean(body.isWishlist),
         wishlistStatus: body.wishlistStatus?.trim() || null,
         wishlistPriority: body.wishlistPriority?.trim() || "MEDIUM",

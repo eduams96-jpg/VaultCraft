@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { GameItem, GameMetadataResult } from "@/types/game";
-import { X, Search, Loader2, Sparkles, Image as ImageIcon, Save, HardDrive, Archive, Trophy, Crown, Tag, Calendar } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
+import { X, Search, Loader2, Sparkles, Image as ImageIcon, Save, HardDrive, Archive, Trophy, Crown, Tag, Calendar, Link2, Gamepad2 } from "lucide-react";
 
 interface GameFormModalProps {
   isOpen: boolean;
@@ -119,6 +120,7 @@ export function GameFormModal({
   const [hoursPlayed, setHoursPlayed] = useState<number>(0);
   const [gameVersion, setGameVersion] = useState("");
   const [versionDate, setVersionDate] = useState("");
+  const [externalLink, setExternalLink] = useState("");
 
   // Metadata Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -162,6 +164,7 @@ export function GameFormModal({
       setHoursPlayed(initialGame.hoursPlayed || 0);
       setGameVersion(initialGame.gameVersion || "");
       setVersionDate(initialGame.versionDate ? initialGame.versionDate.split("T")[0] : "");
+      setExternalLink(initialGame.externalLink || "");
       setSearchQuery(initialGame.title || "");
     } else {
       // Default reset
@@ -198,6 +201,7 @@ export function GameFormModal({
       setHoursPlayed(0);
       setGameVersion("");
       setVersionDate("");
+      setExternalLink("");
       setSearchQuery("");
       setMetaResults([]);
     }
@@ -232,6 +236,7 @@ export function GameFormModal({
     if (item.pcRequirements) setPcRequirements(item.pcRequirements);
     if (item.screenshots) setScreenshots(item.screenshots);
     if (item.timeToBeat) setTimeToBeat(item.timeToBeat);
+    if (item.externalLink) setExternalLink(item.externalLink);
     setShowMetaDropdown(false);
   };
 
@@ -272,6 +277,7 @@ export function GameFormModal({
         installNotes: installNotes.trim() || null,
         gameVersion: gameVersion.trim() || null,
         versionDate: versionDate ? new Date(versionDate).toISOString() : null,
+        externalLink: externalLink.trim() || null,
         userReview: initialGame ? initialGame.userReview : (userReview.trim() || null),
         screenshots: screenshots.trim() || null,
         hoursPlayed: initialGame ? initialGame.hoursPlayed : (Number(hoursPlayed) || 0),
@@ -286,19 +292,26 @@ export function GameFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden my-8">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/60">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🎮</span>
-            <h2 className="text-lg font-bold text-white">
-              {isEditing ? `Editar "${initialGame?.title}"` : "Adicionar Jogo à Coleção"}
-            </h2>
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/70">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <Gamepad2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-white tracking-tight">
+                {isEditing ? `Editar "${initialGame?.title}"` : "Adicionar Jogo à Coleção"}
+              </h2>
+              <p className="text-[11px] text-zinc-400">
+                Preenche os dados manualmente ou usa a pesquisa rápida de metadados
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -675,94 +688,70 @@ export function GameFormModal({
           </div>
 
           {/* Attributes: Arquivo, Savefile, Conquistas, Platinado */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Arquivo */}
-            <div
-              className={`p-3 rounded-2xl border transition-all ${
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setIsArchived((v) => !v);
+              }}
+              className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 isArchived
-                  ? "bg-amber-500/15 border-amber-500/50 shadow-sm"
-                  : "bg-zinc-950/40 border-zinc-800"
+                  ? "bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-sm"
+                  : "bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold">
-                <input
-                  type="checkbox"
-                  checked={isArchived}
-                  onChange={(e) => setIsArchived(e.target.checked)}
-                  className="w-4 h-4 rounded text-amber-500 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
-                />
-                <span className={`flex items-center gap-1.5 ${isArchived ? "text-amber-300 font-bold" : "text-zinc-300"}`}>
-                  <Archive className="w-3.5 h-3.5 text-amber-400" />
-                  Jogo Arquivado
-                </span>
-              </label>
-            </div>
+              <Archive className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Arquivado</span>
+            </button>
 
-            {/* Savefile */}
-            <div
-              className={`p-3 rounded-2xl border transition-all ${
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setHasSavefile((v) => !v);
+              }}
+              className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 hasSavefile
-                  ? "bg-sky-500/15 border-sky-500/50 shadow-sm"
-                  : "bg-zinc-950/40 border-zinc-800"
+                  ? "bg-sky-500/20 border-sky-500/60 text-sky-300 shadow-sm"
+                  : "bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold">
-                <input
-                  type="checkbox"
-                  checked={hasSavefile}
-                  onChange={(e) => setHasSavefile(e.target.checked)}
-                  className="w-4 h-4 rounded text-sky-500 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
-                />
-                <span className={`flex items-center gap-1.5 ${hasSavefile ? "text-sky-300 font-bold" : "text-zinc-300"}`}>
-                  <Save className="w-3.5 h-3.5 text-sky-400" />
-                  Tem Savefile Guardado
-                </span>
-              </label>
-            </div>
+              <Save className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span>Com Savefile</span>
+            </button>
 
-            {/* Conquistas / Achievements */}
-            <div
-              className={`p-3 rounded-2xl border transition-all ${
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setHasAchievements((v) => !v);
+              }}
+              className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 hasAchievements
-                  ? "bg-purple-500/15 border-purple-500/50 shadow-sm"
-                  : "bg-zinc-950/40 border-zinc-800"
+                  ? "bg-purple-500/20 border-purple-500/60 text-purple-300 shadow-sm"
+                  : "bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold">
-                <input
-                  type="checkbox"
-                  checked={hasAchievements}
-                  onChange={(e) => setHasAchievements(e.target.checked)}
-                  className="w-4 h-4 rounded text-purple-500 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
-                />
-                <span className={`flex items-center gap-1.5 ${hasAchievements ? "text-purple-300 font-bold" : "text-zinc-300"}`}>
-                  <Trophy className="w-3.5 h-3.5 text-purple-400" />
-                  Tem Conquistas Guardadas
-                </span>
-              </label>
-            </div>
+              <Trophy className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>Conquistas</span>
+            </button>
 
-            {/* Platinado */}
-            <div
-              className={`p-3 rounded-2xl border transition-all ${
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("platinum");
+                setIsPlatinum((v) => !v);
+              }}
+              className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 isPlatinum
-                  ? "bg-amber-500/20 border-amber-500/60 shadow-sm"
-                  : "bg-zinc-950/40 border-zinc-800"
+                  ? "bg-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm"
+                  : "bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold">
-                <input
-                  type="checkbox"
-                  checked={isPlatinum}
-                  onChange={(e) => setIsPlatinum(e.target.checked)}
-                  className="w-4 h-4 rounded text-amber-500 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
-                />
-                <span className={`flex items-center gap-1.5 ${isPlatinum ? "text-amber-300 font-bold" : "text-zinc-300"}`}>
-                  <Crown className="w-3.5 h-3.5 text-amber-400" />
-                  Platinado / 100% Concluído
-                </span>
-              </label>
-            </div>
+              <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>Platinado</span>
+            </button>
           </div>
 
           {/* Cover & Genres */}
@@ -789,6 +778,20 @@ export function GameFormModal({
                 value={genres}
                 onChange={(e) => setGenres(e.target.value)}
                 className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-xs font-medium text-sky-300 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-sky-400" />
+                <span>Link do Jogo (Steam, FitGirl, GOG, IGDB, Site Oficial)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://store.steampowered.com/... ou link direto do release/página"
+                value={externalLink}
+                onChange={(e) => setExternalLink(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-950 border border-sky-500/30 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-sky-400 font-mono"
               />
             </div>
 
@@ -874,17 +877,19 @@ export function GameFormModal({
 
           {/* Cover preview if present */}
           {coverUrl && (
-            <div className="flex items-center gap-3 p-2 bg-zinc-950/60 rounded-xl border border-zinc-800 text-xs text-zinc-400">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={coverUrl}
-                alt="Pré-visualização da capa"
-                className="w-12 h-16 object-cover rounded-md border border-zinc-700 shadow"
-                onError={() => console.warn("Imagem de capa inválida")}
-              />
-              <div>
+            <div className="flex items-center gap-3 p-2.5 bg-zinc-950/70 rounded-2xl border border-zinc-800 text-xs text-zinc-400">
+              <div className="case-poster w-12 h-16 rounded-lg overflow-hidden border border-white/10 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverUrl}
+                  alt="Pré-visualização da capa"
+                  className="w-full h-full object-cover"
+                  onError={() => console.warn("Imagem de capa inválida")}
+                />
+              </div>
+              <div className="min-w-0">
                 <div className="font-semibold text-zinc-200">Pré-visualização da Capa</div>
-                <div className="text-[11px] text-zinc-500 truncate max-w-sm">{coverUrl}</div>
+                <div className="text-[11px] text-zinc-500 truncate max-w-sm font-mono">{coverUrl}</div>
               </div>
             </div>
           )}

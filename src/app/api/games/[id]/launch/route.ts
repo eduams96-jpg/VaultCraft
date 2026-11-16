@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { execFile } from "child_process";
+import { looksLikeUrl, parseLaunchUrl, shellOpen } from "@/lib/shell-open";
 import path from "path";
 import fs from "fs";
+
+const IGNORED_EXE_HINTS = ["unins", "crash", "setup", "redist"];
 
 export async function POST(
   request: Request,
@@ -10,6 +12,9 @@ export async function POST(
 ) {
   try {
     const { id } = await props.params;
+    const body = await request.json().catch(() => ({}));
+    const action = body?.action || "launch"; // "launch" | "open"
+
     const game = await prisma.game.findUnique({
       where: { id },
     });
@@ -18,7 +23,35 @@ export async function POST(
       return NextResponse.json({ error: "Jogo não encontrado" }, { status: 404 });
     }
 
-    const execPath = game.executablePath?.trim() || game.storageLocation?.trim();
+    const storagePath = game.storageLocation?.trim() || "";
+    const exePath = game.executablePath?.trim() || "";
+
+    if (action === "open") {
+      const folderPath =
+        storagePath ||
+        (exePath && !looksLikeUrl(exePath) ? path.dirname(/*turbopackIgnore: true*/ exePath) : "");
+
+      if (!folderPath || !fs.existsSync(/*turbopackIgnore: true*/ folderPath)) {
+        return NextResponse.json(
+          { error: "Pasta do jogo não encontrada no disco." },
+          { status: 404 }
+        );
+      }
+
+      // storageLocation pode apontar para um ficheiro (ROM/ISO): abre a pasta que o contém
+      const folderToOpen = fs.statSync(/*turbopackIgnore: true*/ folderPath).isDirectory()
+        ? folderPath
+        : path.dirname(/*turbopackIgnore: true*/ folderPath);
+
+      await shellOpen(folderToOpen);
+
+      return NextResponse.json({
+        success: true,
+        message: "A abrir pasta do jogo no Explorador do Windows...",
+      });
+    }
+
+    const execPath = exePath || storagePath;
 
     if (!execPath) {
       return NextResponse.json(
@@ -30,16 +63,21 @@ export async function POST(
       );
     }
 
-    // If it's a URL or Steam protocol (steam://)
-    if (execPath.startsWith("steam://") || execPath.startsWith("http://") || execPath.startsWith("https://")) {
-      execFile("cmd.exe", ["/c", "start", "", execPath], (err) => {
-        if (err) console.error("Erro ao abrir URL/protocolo:", err);
-      });
+    // Store / launcher protocols (steam://, com.epicgames.launcher://, https://, ...)
+    if (looksLikeUrl(execPath)) {
+      const launchUrl = parseLaunchUrl(execPath);
+      if (!launchUrl) {
+        return NextResponse.json(
+          { error: "Protocolo não suportado no caminho do executável deste jogo." },
+          { status: 400 }
+        );
+      }
+      await shellOpen(launchUrl);
       return NextResponse.json({ success: true, message: "A abrir jogo..." });
     }
 
-    // If it's a local path on Windows
-    if (!fs.existsSync(execPath)) {
+    // Local path on Windows
+    if (!fs.existsSync(/*turbopackIgnore: true*/ execPath)) {
       return NextResponse.json(
         {
           error: `O ficheiro ou diretório "${execPath}" não foi encontrado no teu disco.`,
@@ -48,47 +86,46 @@ export async function POST(
       );
     }
 
-    const stat = fs.statSync(execPath);
+    const stat = fs.statSync(/*turbopackIgnore: true*/ execPath);
     let target = execPath;
-    let cwd = path.dirname(execPath);
+    let cwd = path.dirname(/*turbopackIgnore: true*/ execPath);
 
     if (stat.isDirectory()) {
-      // Find .exe files in the directory
-      const files = fs.readdirSync(execPath);
-      const exeFiles = files.filter(
-        (f) =>
-          f.toLowerCase().endsWith(".exe") &&
-          !f.toLowerCase().includes("unins") &&
-          !f.toLowerCase().includes("crash") &&
-          !f.toLowerCase().includes("setup") &&
-          !f.toLowerCase().includes("redist")
-      );
+      const exeFiles = fs.readdirSync(/*turbopackIgnore: true*/ execPath).filter((f) => {
+        const lower = f.toLowerCase();
+        return lower.endsWith(".exe") && !IGNORED_EXE_HINTS.some((hint) => lower.includes(hint));
+      });
 
-      if (exeFiles.length > 0) {
-        target = path.join(execPath, exeFiles[0]);
-        cwd = execPath;
-      } else {
-        // Just open the folder in Windows Explorer securely
-        execFile("explorer.exe", [execPath], (err) => {
-          if (err) console.error("Erro ao abrir explorer:", err);
-        });
+      if (exeFiles.length === 0) {
+        await shellOpen(execPath);
         return NextResponse.json({
           success: true,
           message: "A abrir a pasta do jogo no Explorador de Ficheiros...",
         });
       }
+
+      // Com vários .exe, o maior é quase sempre o jogo (e não um launcher/config auxiliar)
+      let best = exeFiles[0];
+      let bestSize = -1;
+      for (const f of exeFiles) {
+        try {
+          const size = fs.statSync(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ execPath, f)).size;
+          if (size > bestSize) {
+            best = f;
+            bestSize = size;
+          }
+        } catch {}
+      }
+
+      target = path.join(/*turbopackIgnore: true*/ execPath, best);
+      cwd = execPath;
     }
 
-    // Execute on Windows via cmd start to detach process cleanly
-    execFile("cmd.exe", ["/c", "start", "", target], { cwd }, (err) => {
-      if (err) {
-        console.error("Erro ao iniciar jogo:", err);
-      }
-    });
+    await shellOpen(target, cwd);
 
     return NextResponse.json({
       success: true,
-      message: `A iniciar jogo: ${path.basename(target)}`,
+      message: `A iniciar jogo: ${path.basename(/*turbopackIgnore: true*/ target)}`,
     });
   } catch (error) {
     console.error("Launch error:", error);

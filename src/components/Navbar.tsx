@@ -19,8 +19,13 @@ import {
   RefreshCw,
   Loader2,
   Radio,
-  Film,
+  FolderSearch,
+  Volume2,
+  VolumeX,
+  Search,
 } from "lucide-react";
+import { VaultCraftLogo } from "@/components/CraftIcons";
+import { isSfxMuted, toggleSfxMuted, playUiSound } from "@/lib/ui-sfx";
 
 interface NavbarProps {
   onOpenAddModal: () => void;
@@ -40,10 +45,8 @@ interface NavbarProps {
   isSyncingSteam?: boolean;
   activeTab?: "COLLECTION" | "WISHLIST";
   onSelectTab?: (tab: "COLLECTION" | "WISHLIST") => void;
-  activeVault?: "GAMES" | "MEDIA";
-  onSelectVault?: (vault: "GAMES" | "MEDIA") => void;
-  mediaCount?: number;
-  onOpenAddMediaModal?: () => void;
+  onOpenScanGamesModal?: () => void;
+  onOpenSpotlight?: () => void;
   totalGames: number;
   wishlistCount: number;
 }
@@ -66,15 +69,18 @@ export function Navbar({
   isSyncingSteam = false,
   activeTab = "COLLECTION",
   onSelectTab,
-  activeVault = "GAMES",
-  onSelectVault,
-  mediaCount = 0,
-  onOpenAddMediaModal,
+  onOpenScanGamesModal,
+  onOpenSpotlight,
   totalGames,
   wishlistCount,
 }: NavbarProps) {
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [sfxMuted, setSfxMutedState] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSfxMutedState(isSfxMuted());
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -88,161 +94,136 @@ export function Navbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand / Logo */}
-        <div
+    <header className="sticky top-0 z-40 bg-zinc-950/85 backdrop-blur-2xl border-b border-white/[0.07]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+        {/* Left: Minimalist Single-Line Studio Brand */}
+        <button
+          type="button"
           onClick={() => onSelectTab && onSelectTab("COLLECTION")}
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center gap-2.5 cursor-pointer group shrink-0 whitespace-nowrap focus:outline-none"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 shrink-0 group-hover:scale-105 transition-transform">
-            <Gamepad2 className="w-6 h-6" />
+          <div className="w-9 h-9 rounded-xl bg-zinc-900/90 border border-white/10 flex items-center justify-center shadow-inner group-hover:border-indigo-400/50 transition-all shrink-0">
+            <VaultCraftLogo className="w-7 h-7" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-tight text-white group-hover:text-indigo-300 transition-colors">
-                Game<span className="text-indigo-400">Tracker</span>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-base tracking-tight text-white">
+              Vault
+              <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Craft
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                Vault
-              </span>
-            </div>
-            <p className="text-[11px] text-zinc-400 hidden sm:block">
-              Gestão de Coleção (Originais, Repacks, ROMs & Físicos)
-            </p>
+            </span>
+            <span className="hidden xl:inline-flex text-[9px] uppercase font-bold tracking-[0.14em] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-zinc-400 border border-white/[0.08]">
+              Studio
+            </span>
           </div>
+        </button>
+
+        {/* Center: Games Vault Badge */}
+        <div className="flex items-center gap-1.5 bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-white/[0.08] shrink-0">
+          <Gamepad2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <span className="text-xs font-semibold text-white">Cofre de Jogos</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md font-mono bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+            {totalGames}
+          </span>
         </div>
 
-        {/* Central Vault Switcher: Games vs Movies/Series */}
-        <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800 shadow-inner">
-          <button
-            type="button"
-            onClick={() => onSelectVault?.("GAMES")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeVault === "GAMES"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Jogos</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeVault === "GAMES" ? "bg-indigo-700 text-white" : "bg-zinc-800 text-zinc-400"
-            }`}>
-              {totalGames}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSelectVault?.("MEDIA")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeVault === "MEDIA"
-                ? "bg-purple-600 text-white shadow-md shadow-purple-600/30"
-                : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            <Film className={`w-3.5 h-3.5 ${activeVault === "MEDIA" ? "text-white" : "text-purple-400"}`} />
-            <span>Filmes & Séries</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-              activeVault === "MEDIA" ? "bg-purple-700 text-white" : "bg-zinc-800 text-zinc-400"
-            }`}>
-              {mediaCount}
-            </span>
-          </button>
-        </div>
-
-        {/* Right Actions: Organized & Streamlined */}
-        <div className="flex items-center gap-2">
-          {activeVault === "GAMES" && (
-            <>
-              {/* Wishlist / Radar */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (onSelectTab) {
-                    onSelectTab(activeTab === "WISHLIST" ? "COLLECTION" : "WISHLIST");
-                  } else {
-                    onOpenWishlistModal();
-                  }
-                }}
-                className={`px-3 py-2 border text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer relative ${
-                  activeTab === "WISHLIST"
-                    ? "bg-pink-600 text-white border-pink-500 shadow-md shadow-pink-600/30"
-                    : "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white"
-                }`}
-                title="Wishlist e Radar de Jogos"
-              >
-                <Bookmark className={`w-4 h-4 ${activeTab === "WISHLIST" ? "text-white" : "text-pink-400"}`} />
-                <span className="hidden sm:inline">Wishlist</span>
-                {wishlistCount > 0 && (
-                  <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                    activeTab === "WISHLIST" ? "bg-white text-pink-600" : "bg-pink-500 text-white"
-                  }`}>
-                    {wishlistCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Metas & Desafios Button (1-Click) */}
-              {onOpenGoalsModal && (
-                <button
-                  type="button"
-                  onClick={onOpenGoalsModal}
-                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-indigo-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-                  title="Metas & Desafios de Backlog"
-                >
-                  <Target className="w-4 h-4 text-indigo-400" />
-                  <span className="hidden lg:inline">Metas</span>
-                </button>
-              )}
-
-              {/* Gamer Card Button (1-Click) */}
-              {onOpenGamerCardModal && (
-                <button
-                  type="button"
-                  onClick={onOpenGamerCardModal}
-                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/50 text-amber-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-                  title="Gamer Card & Exportar (CSV/PDF)"
-                >
-                  <Share2 className="w-4 h-4 text-amber-400" />
-                  <span className="hidden lg:inline">Gamer Card</span>
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Batch Import Button (Prominent) */}
-          <button
-            type="button"
-            onClick={onOpenBatchModal}
-            className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-indigo-300 hover:text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Importar Lista de Jogos em Lote com Capas Automáticas"
-          >
-            <Layers className="w-4 h-4 text-indigo-400" />
-            <span className="hidden sm:inline">Importar em Lote</span>
-          </button>
-
-          {/* Tools Dropdown (Roleta, Stats, Scan, Backup) */}
-          <div className="relative" ref={toolsRef}>
+        {/* Right: Unified Utility Dock + Primary CTA */}
+        <div className="flex items-center gap-2 shrink-0">
+          {onOpenSpotlight && (
             <button
               type="button"
-              onClick={() => setToolsOpen(!toolsOpen)}
-              className={`px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
-                toolsOpen
-                  ? "border-indigo-500 text-white bg-zinc-800"
-                  : "border-zinc-800 text-zinc-300 hover:text-white"
-              }`}
-              title="Ferramentas Adicionais"
+              onClick={() => {
+                playUiSound("open");
+                onOpenSpotlight();
+              }}
+              title="Spotlight Global — Pesquisar Jogos e Comandos (Ctrl+K)"
+              className="h-10 px-2.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800/90 border border-white/[0.08] hover:border-indigo-500/40 text-zinc-300 hover:text-white flex items-center gap-2 text-xs font-medium transition-all cursor-pointer shrink-0"
             >
-              <Wrench className="w-3.5 h-3.5 text-zinc-400" />
-              <span className="hidden md:inline">Ferramentas</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${
-                  toolsOpen ? "rotate-180" : ""
-                }`}
-              />
+              <Search className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="hidden xl:inline text-zinc-400">Spotlight</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-black/50 border border-white/10 text-[10px] font-mono text-zinc-400">
+                Ctrl+K
+              </kbd>
             </button>
+          )}
+          <div className="flex items-center gap-0.5 bg-zinc-900/90 p-1 rounded-xl border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("click");
+                if (onSelectTab) {
+                  onSelectTab(activeTab === "WISHLIST" ? "COLLECTION" : "WISHLIST");
+                } else {
+                  onOpenWishlistModal();
+                }
+              }}
+              className={`h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                activeTab === "WISHLIST"
+                  ? "bg-pink-600 text-white shadow-sm"
+                  : "text-zinc-300 hover:text-white hover:bg-white/[0.05]"
+              }`}
+              title="Wishlist e Radar de Jogos"
+            >
+              <Bookmark className={`w-3.5 h-3.5 shrink-0 ${activeTab === "WISHLIST" ? "text-white" : "text-pink-400"}`} />
+              <span className="hidden md:inline">Wishlist</span>
+              {wishlistCount > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold font-mono ${
+                    activeTab === "WISHLIST" ? "bg-black/25 text-white" : "bg-pink-500/20 text-pink-300"
+                  }`}
+                >
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("click");
+                onOpenBatchModal();
+              }}
+              className="h-8 px-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.05] flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all cursor-pointer"
+              title="Importar Lista de Jogos em Lote"
+            >
+                  <Layers className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="hidden lg:inline">Importar Lote</span>
+                </button>
+                {onOpenScanGamesModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playUiSound("click");
+                      onOpenScanGamesModal();
+                    }}
+                    className="h-8 px-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/[0.05] flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all cursor-pointer"
+                    title="Escanear Pasta Local de Jogos / Repacks / ROMs"
+                  >
+                    <FolderSearch className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span className="hidden lg:inline">Scanner</span>
+                  </button>
+                )}
+
+            {/* Tools Dropdown */}
+            <div className="relative" ref={toolsRef}>
+              <button
+                type="button"
+                onClick={() => setToolsOpen(!toolsOpen)}
+                className={`h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  toolsOpen
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-300 hover:text-white hover:bg-white/[0.05]"
+                }`}
+                title="Ferramentas Adicionais (Metas, Gamer Card, Stats, Backup)"
+              >
+                <Wrench className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span className="hidden sm:inline">Ferramentas</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-zinc-400 transition-transform shrink-0 ${
+                    toolsOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
             {toolsOpen && (
               <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/80 rounded-2xl shadow-2xl py-1.5 z-50 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
@@ -437,18 +418,33 @@ export function Navbar({
             )}
           </div>
 
-          {/* Add Game / Media Button (Primary) */}
+          {/* Sound SFX Toggle (inside unified dock) */}
           <button
             type="button"
-            onClick={activeVault === "MEDIA" ? onOpenAddMediaModal : onOpenAddModal}
-            className={`px-3.5 sm:px-4 py-2 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer ${
-              activeVault === "MEDIA"
-                ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-600/30"
-                : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/30"
+            onClick={() => setSfxMutedState(toggleSfxMuted())}
+            title={sfxMuted ? "Ativar Micro-Sons de Interface" : "Silenciar Micro-Sons de Interface"}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+              sfxMuted
+                ? "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
+                : "text-indigo-300 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>{activeVault === "MEDIA" ? "Novo Título" : "Adicionar"}</span>
+            {sfxMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          </div>
+
+          {/* Add Game Button (Primary, Single-Line) */}
+          <button
+            type="button"
+            onClick={() => {
+              playUiSound("click");
+              onOpenAddModal();
+            }}
+            title="Adicionar Novo Jogo (Alt+N)"
+            className="h-9 px-3.5 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-md active:scale-95 transition-all cursor-pointer bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/25"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5] shrink-0" />
+            <span>Novo Jogo</span>
           </button>
         </div>
       </div>

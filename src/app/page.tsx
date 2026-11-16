@@ -1,38 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { GameItem, CategoryItem, GoalItem } from "@/types/game";
 import { Navbar } from "@/components/Navbar";
-import { StatsBar } from "@/components/StatsBar";
-import { FilterBar } from "@/components/FilterBar";
-import { HallOfFame } from "@/components/HallOfFame";
-import { GameCard } from "@/components/GameCard";
-import { GameListView } from "@/components/GameListView";
 import { GameFormModal } from "@/components/GameFormModal";
 import { GameDetailModal } from "@/components/GameDetailModal";
 import { BackupModal } from "@/components/BackupModal";
 import { RandomPickerModal } from "@/components/RandomPickerModal";
 import { StatsModal } from "@/components/StatsModal";
-import { WishlistModal } from "@/components/WishlistModal";
 import { BatchImportModal } from "@/components/BatchImportModal";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { BulkEditModal, type BulkEditUpdates } from "@/components/BulkEditModal";
 import { CategoryModal } from "@/components/CategoryModal";
-import { CategoryFilterTabs } from "@/components/CategoryFilterTabs";
 import { WishlistView } from "@/components/WishlistView";
 import { BacklogGoalsModal } from "@/components/BacklogGoalsModal";
 import { GamerWrapUpModal } from "@/components/GamerWrapUpModal";
 import { GamerCardModal } from "@/components/GamerCardModal";
 import { VersionRadarModal } from "@/components/VersionRadarModal";
-import { MediaItem } from "@/types/media";
-import { MediaCard } from "@/components/MediaCard";
-import { MediaStatsBar } from "@/components/MediaStatsBar";
-import { MediaFilterBar } from "@/components/MediaFilterBar";
-import { MediaFormModal } from "@/components/MediaFormModal";
-import { MediaDetailModal } from "@/components/MediaDetailModal";
-import { MediaListView } from "@/components/MediaListView";
-import { MediaScanModal } from "@/components/MediaScanModal";
-import { Loader2, Plus, Ghost, Gamepad2, Bookmark, Film, Tv, Clapperboard } from "lucide-react";
+import { GamesVaultSection } from "@/components/GamesVaultSection";
+import { GameScanModal } from "@/components/GameScanModal";
+import { SpotlightModal } from "@/components/SpotlightModal";
+import { useMultiSelect } from "@/hooks/useMultiSelect";
 
 export default function HomePage() {
   const [games, setGames] = useState<GameItem[]>([]);
@@ -55,10 +43,9 @@ export default function HomePage() {
   const [archiveFilter, setArchiveFilter] = useState("ALL");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("updatedAt");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "compact" | "list">("grid");
 
-  // Multi-Selection State
-  const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
+  // Bulk Edit Modal State
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
   // Category Modal State
@@ -70,38 +57,19 @@ export default function HomePage() {
   const [isWrapUpModalOpen, setIsWrapUpModalOpen] = useState(false);
   const [isGamerCardModalOpen, setIsGamerCardModalOpen] = useState(false);
   const [isVersionRadarOpen, setIsVersionRadarOpen] = useState(false);
+  const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
 
   // Modals
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isRandomModalOpen, setIsRandomModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
-  const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isGameScanOpen, setIsGameScanOpen] = useState(false);
   const [defaultIsWishlist, setDefaultIsWishlist] = useState(false);
 
   const [gameToEdit, setGameToEdit] = useState<GameItem | null>(null);
   const [gameDetail, setGameDetail] = useState<GameItem | null>(null);
-
-  // Top-Level Entertainment Vault (GAMES vs MEDIA)
-  const [activeVault, setActiveVault] = useState<"GAMES" | "MEDIA">("GAMES");
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [mediaLoading, setMediaLoading] = useState(false);
-
-  // Media Filters
-  const [mediaSearch, setMediaSearch] = useState("");
-  const [mediaTypeFilter, setMediaTypeFilter] = useState("ALL");
-  const [mediaStatusFilter, setMediaStatusFilter] = useState("ALL");
-  const [mediaQualityFilter, setMediaQualityFilter] = useState("ALL");
-  const [mediaFavoriteOnly, setMediaFavoriteOnly] = useState(false);
-  const [mediaSortBy, setMediaSortBy] = useState("updatedAt");
-  const [mediaViewMode, setMediaViewMode] = useState<"grid" | "compact" | "list">("grid");
-
-  // Media Modals
-  const [isMediaFormOpen, setIsMediaFormOpen] = useState(false);
-  const [isMediaScanOpen, setIsMediaScanOpen] = useState(false);
-  const [mediaToEdit, setMediaToEdit] = useState<MediaItem | null>(null);
-  const [mediaDetail, setMediaDetail] = useState<MediaItem | null>(null);
 
   // Status Notification Toast
   const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "error" } | null>(
@@ -111,11 +79,25 @@ export default function HomePage() {
   // Background Tasks Loading States
   const [isEnriching, setIsEnriching] = useState(false);
   const [isSyncingSteam, setIsSyncingSteam] = useState(false);
+  const [isRescanningGames, setIsRescanningGames] = useState(false);
 
-  const showToast = (text: string, type: "success" | "error" = "success") => {
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((text: string, type: "success" | "error" = "success") => {
+    // Cancel the previous timer so an older toast can't hide a newer one early
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMsg({ text, type });
-    setTimeout(() => setToastMsg(null), 4000);
-  };
+    toastTimerRef.current = setTimeout(() => {
+      setToastMsg(null);
+      toastTimerRef.current = null;
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // Fetch games from API
   const fetchGames = useCallback(async () => {
@@ -158,28 +140,59 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fetch media (movies & series)
-  const fetchMediaItems = useCallback(async () => {
+  // Restore the saved view mode once on mount. The value is persisted by
+  // handleViewModeChange (not by an effect) so a StrictMode double-mount
+  // can never overwrite the stored preference with the default.
+  useEffect(() => {
     try {
-      setMediaLoading(true);
-      const res = await fetch("/api/media");
-      if (res.ok) {
-        const data = await res.json();
-        setMediaItems(data);
+      const savedGameView = localStorage.getItem("gt_gameViewMode");
+      if (savedGameView === "grid" || savedGameView === "compact" || savedGameView === "list") {
+        setViewMode(savedGameView);
       }
-    } catch (err) {
-      console.error("Erro ao carregar filmes e séries:", err);
-    } finally {
-      setMediaLoading(false);
-    }
+      // Chaves antigas da Videoteca, já sem uso
+      localStorage.removeItem("gt_activeVault");
+      localStorage.removeItem("gt_mediaViewMode");
+    } catch {}
   }, []);
+
+  const handleViewModeChange = useCallback((mode: "grid" | "compact" | "list") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("gt_gameViewMode", mode);
+    } catch {}
+  }, []);
+
+  // Global shortcuts: Alt+N opens the add-game modal; Escape closes the top-most modal
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setGameToEdit(null);
+        setDefaultIsWishlist(mainTab === "WISHLIST");
+        setIsFormModalOpen(true);
+        return;
+      }
+
+      if (e.key !== "Escape") return;
+      if (isFormModalOpen) {
+        setIsFormModalOpen(false);
+        setGameToEdit(null);
+        setDefaultIsWishlist(false);
+      } else if (isGameScanOpen) {
+        setIsGameScanOpen(false);
+      } else if (gameDetail) {
+        setGameDetail(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mainTab, isFormModalOpen, isGameScanOpen, gameDetail]);
 
   useEffect(() => {
     fetchGames();
     fetchCategories();
     fetchGoals();
-    fetchMediaItems();
-  }, [fetchGames, fetchCategories, fetchGoals, fetchMediaItems]);
+  }, [fetchGames, fetchCategories, fetchGoals]);
 
   // Wishlist count
   const wishlistCount = useMemo(() => {
@@ -351,7 +364,7 @@ export default function HomePage() {
           return (b.releaseYear ?? 0) - (a.releaseYear ?? 0);
         case "updatedAt":
         default:
-          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          return (b.updatedAt || "").localeCompare(a.updatedAt || "");
       }
     });
   }, [
@@ -369,30 +382,19 @@ export default function HomePage() {
     sortBy,
   ]);
 
-  // Selection Logic
+  // Selection Logic via shared useMultiSelect hook (O(1) Set lookups)
+  const {
+    selectedIds: selectedGameIds,
+    selectedSet: selectedGamesSet,
+    allFilteredSelected,
+    toggleSelectId: toggleSelectGameId,
+    toggleSelectAllFiltered: handleToggleSelectAllFiltered,
+    clearSelection: handleClearSelection,
+    setSelectedIds: setSelectedGameIds,
+  } = useMultiSelect(filteredGames);
+
   const handleToggleSelectGame = (game: GameItem, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedGameIds((prev) =>
-      prev.includes(game.id) ? prev.filter((id) => id !== game.id) : [...prev, game.id]
-    );
-  };
-
-  const allFilteredSelected =
-    filteredGames.length > 0 &&
-    filteredGames.every((g) => selectedGameIds.includes(g.id));
-
-  const handleToggleSelectAllFiltered = () => {
-    if (allFilteredSelected) {
-      const visibleIds = new Set(filteredGames.map((g) => g.id));
-      setSelectedGameIds((prev) => prev.filter((id) => !visibleIds.has(id)));
-    } else {
-      const combined = new Set([...selectedGameIds, ...filteredGames.map((g) => g.id)]);
-      setSelectedGameIds(Array.from(combined));
-    }
-  };
-
-  const handleClearSelection = () => {
-    setSelectedGameIds([]);
+    toggleSelectGameId(game.id, e);
   };
 
   // Bulk Actions
@@ -633,7 +635,8 @@ export default function HomePage() {
 
   // Quick Toggle Archive Status
   const handleToggleArchive = async (game: GameItem) => {
-    const nextVal = !game.isArchived;
+    const prevVal = game.isArchived;
+    const nextVal = !prevVal;
     setGames((prev) =>
       prev.map((g) => (g.id === game.id ? { ...g, isArchived: nextVal } : g))
     );
@@ -647,19 +650,28 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isArchived: nextVal }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar arquivo");
     } catch (err) {
       console.error("Erro ao atualizar arquivo:", err);
+      setGames((prev) =>
+        prev.map((g) => (g.id === game.id ? { ...g, isArchived: prevVal } : g))
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({ ...gameDetail, isArchived: prevVal });
+      }
+      showToast(`Erro ao atualizar arquivo de "${game.title}".`, "error");
     }
   };
 
   // Quick Toggle Installed Status
   const handleToggleInstalled = async (game: GameItem) => {
-    const nextVal = !game.isInstalled;
+    const prevVal = game.isInstalled;
+    const nextVal = !prevVal;
     setGames((prev) =>
       prev.map((g) => (g.id === game.id ? { ...g, isInstalled: nextVal } : g))
     );
@@ -673,19 +685,28 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isInstalled: nextVal }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar instalação");
     } catch (err) {
       console.error("Erro ao atualizar instalação:", err);
+      setGames((prev) =>
+        prev.map((g) => (g.id === game.id ? { ...g, isInstalled: prevVal } : g))
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({ ...gameDetail, isInstalled: prevVal });
+      }
+      showToast(`Erro ao atualizar instalação de "${game.title}".`, "error");
     }
   };
 
   // Quick Toggle Savefile
   const handleToggleSavefile = async (game: GameItem) => {
-    const nextVal = !game.hasSavefile;
+    const prevVal = game.hasSavefile;
+    const nextVal = !prevVal;
     setGames((prev) =>
       prev.map((g) => (g.id === game.id ? { ...g, hasSavefile: nextVal } : g))
     );
@@ -699,19 +720,28 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hasSavefile: nextVal }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar savefile");
     } catch (err) {
       console.error("Erro ao atualizar savefile:", err);
+      setGames((prev) =>
+        prev.map((g) => (g.id === game.id ? { ...g, hasSavefile: prevVal } : g))
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({ ...gameDetail, hasSavefile: prevVal });
+      }
+      showToast(`Erro ao atualizar savefile de "${game.title}".`, "error");
     }
   };
 
   // Quick Toggle Achievements
   const handleToggleAchievements = async (game: GameItem) => {
-    const nextVal = !game.hasAchievements;
+    const prevVal = game.hasAchievements;
+    const nextVal = !prevVal;
     setGames((prev) =>
       prev.map((g) => (g.id === game.id ? { ...g, hasAchievements: nextVal } : g))
     );
@@ -725,26 +755,38 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hasAchievements: nextVal }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar conquistas");
     } catch (err) {
       console.error("Erro ao atualizar conquistas:", err);
+      setGames((prev) =>
+        prev.map((g) => (g.id === game.id ? { ...g, hasAchievements: prevVal } : g))
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({ ...gameDetail, hasAchievements: prevVal });
+      }
+      showToast(`Erro ao atualizar conquistas de "${game.title}".`, "error");
     }
   };
 
   // Quick Toggle Platinum
   const handleTogglePlatinum = async (game: GameItem) => {
-    const nextVal = !(game.isPlatinum || game.status === "PLATINUM");
+    const prevPlatinum = game.isPlatinum;
+    const prevStatus = game.status;
+    const nextVal = !(prevPlatinum || prevStatus === "PLATINUM");
+    const nextStatus = nextVal ? "PLATINUM" : prevStatus === "PLATINUM" ? "COMPLETED" : prevStatus;
+
     setGames((prev) =>
       prev.map((g) =>
         g.id === game.id
           ? {
               ...g,
               isPlatinum: nextVal,
-              status: nextVal ? "PLATINUM" : g.status === "PLATINUM" ? "COMPLETED" : g.status,
+              status: nextStatus,
             }
           : g
       )
@@ -753,7 +795,7 @@ export default function HomePage() {
       setGameDetail({
         ...gameDetail,
         isPlatinum: nextVal,
-        status: nextVal ? "PLATINUM" : gameDetail.status === "PLATINUM" ? "COMPLETED" : gameDetail.status,
+        status: nextStatus,
       });
     }
     showToast(
@@ -763,22 +805,39 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           isPlatinum: nextVal,
-          status: nextVal ? "PLATINUM" : game.status === "PLATINUM" ? "COMPLETED" : game.status,
+          status: nextStatus,
         }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar platinado");
     } catch (err) {
       console.error("Erro ao atualizar platinado:", err);
+      setGames((prev) =>
+        prev.map((g) =>
+          g.id === game.id
+            ? { ...g, isPlatinum: prevPlatinum, status: prevStatus }
+            : g
+        )
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({
+          ...gameDetail,
+          isPlatinum: prevPlatinum,
+          status: prevStatus,
+        });
+      }
+      showToast(`Erro ao atualizar platinado de "${game.title}".`, "error");
     }
   };
 
   // Quick Toggle Favorite (Hall of Fame)
   const handleToggleFavorite = async (game: GameItem) => {
-    const nextVal = !game.isFavorite;
+    const prevVal = game.isFavorite;
+    const nextVal = !prevVal;
     setGames((prev) =>
       prev.map((g) => (g.id === game.id ? { ...g, isFavorite: nextVal } : g))
     );
@@ -792,13 +851,21 @@ export default function HomePage() {
     );
 
     try {
-      await fetch(`/api/games/${game.id}`, {
+      const res = await fetch(`/api/games/${game.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isFavorite: nextVal }),
       });
+      if (!res.ok) throw new Error("Falha ao atualizar favorito");
     } catch (err) {
       console.error("Erro ao atualizar favorito:", err);
+      setGames((prev) =>
+        prev.map((g) => (g.id === game.id ? { ...g, isFavorite: prevVal } : g))
+      );
+      if (gameDetail && gameDetail.id === game.id) {
+        setGameDetail({ ...gameDetail, isFavorite: prevVal });
+      }
+      showToast(`Erro ao atualizar favorito de "${game.title}".`, "error");
     }
   };
 
@@ -951,164 +1018,20 @@ export default function HomePage() {
     }
   };
 
-  // Media Category Counts for tabs
-  const mediaCategoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: mediaItems.length };
-    for (const m of mediaItems) {
-      counts[m.type] = (counts[m.type] || 0) + 1;
-    }
-    return counts;
-  }, [mediaItems]);
-
-  // Filtered & Sorted Media items (Movies & Series)
-  const filteredMedia = useMemo(() => {
-    return mediaItems
-      .filter((m) => {
-        if (mediaSearch.trim()) {
-          const q = mediaSearch.toLowerCase();
-          const match =
-            m.title.toLowerCase().includes(q) ||
-            m.genres?.toLowerCase().includes(q) ||
-            m.cast?.toLowerCase().includes(q) ||
-            m.director?.toLowerCase().includes(q);
-          if (!match) return false;
-        }
-        if (mediaTypeFilter !== "ALL" && m.type !== mediaTypeFilter) return false;
-        if (mediaStatusFilter !== "ALL" && m.status !== mediaStatusFilter) return false;
-        if (mediaQualityFilter !== "ALL" && m.quality !== mediaQualityFilter) return false;
-        if (mediaFavoriteOnly && !m.isFavorite) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        if (mediaSortBy === "title") return a.title.localeCompare(b.title);
-        if (mediaSortBy === "rating") return (b.rating || 0) - (a.rating || 0);
-        if (mediaSortBy === "releaseYear") return (b.releaseYear || 0) - (a.releaseYear || 0);
-        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      });
-  }, [mediaItems, mediaSearch, mediaTypeFilter, mediaStatusFilter, mediaQualityFilter, mediaFavoriteOnly, mediaSortBy]);
-
-  // Media CRUD Handlers
-  const handleSaveMedia = async (data: Partial<MediaItem>) => {
+  const handleRescanGameFolders = async () => {
+    if (isRescanningGames) return;
+    setIsRescanningGames(true);
     try {
-      if (mediaToEdit) {
-        const res = await fetch(`/api/media/${mediaToEdit.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        if (res.ok) {
-          const updated = await res.json();
-          setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-          if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
-          showToast(`"${updated.title}" atualizado com sucesso!`);
-        }
-      } else {
-        const res = await fetch("/api/media", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        if (res.ok) {
-          const created = await res.json();
-          setMediaItems((prev) => [created, ...prev]);
-          showToast(`"${created.title}" adicionado à coleção!`);
-        }
-      }
+      const res = await fetch("/api/games/rescan", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao sincronizar disco de jogos.");
+      await fetchGames();
+      showToast(data.message || "Disco de jogos sincronizado com sucesso!");
     } catch (err: any) {
       console.error(err);
-      showToast("Erro ao guardar filme/série.", "error");
-    }
-  };
-
-  const handleDeleteMedia = async (media: MediaItem) => {
-    try {
-      const res = await fetch(`/api/media/${media.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setMediaItems((prev) => prev.filter((m) => m.id !== media.id));
-        if (mediaDetail && mediaDetail.id === media.id) setMediaDetail(null);
-        showToast(`"${media.title}" removido com sucesso.`);
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Erro ao eliminar.", "error");
-    }
-  };
-
-  const handleUpdateMediaStatus = async (media: MediaItem, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/media/${media.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
-        showToast(`Estado alterado para "${newStatus}"!`);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleToggleMediaFavorite = async (media: MediaItem) => {
-    try {
-      const res = await fetch(`/api/media/${media.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isFavorite: !media.isFavorite }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
-        showToast(updated.isFavorite ? `⭐ "${updated.title}" adicionado aos favoritos!` : `Removido dos favoritos.`);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleIncrementEpisode = async (media: MediaItem) => {
-    try {
-      const currentEp = media.currentEpisode || 0;
-      const nextEp = currentEp + 1;
-      const res = await fetch(`/api/media/${media.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentEpisode: nextEp,
-          status: media.status === "PLAN_TO_WATCH" ? "WATCHING" : media.status,
-        }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
-        showToast(`Episódio ${nextEp} marcado como visto!`);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDecrementEpisode = async (media: MediaItem) => {
-    try {
-      const currentEp = media.currentEpisode || 0;
-      const prevEp = Math.max(0, currentEp - 1);
-      const res = await fetch(`/api/media/${media.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentEpisode: prevEp }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setMediaItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-        if (mediaDetail && mediaDetail.id === updated.id) setMediaDetail(updated);
-      }
-    } catch (err) {
-      console.error(err);
+      showToast(err?.message || "Erro ao sincronizar pastas de jogos.", "error");
+    } finally {
+      setIsRescanningGames(false);
     }
   };
 
@@ -1130,13 +1053,6 @@ export default function HomePage() {
 
       {/* Top Navbar */}
       <Navbar
-        activeVault={activeVault}
-        onSelectVault={setActiveVault}
-        mediaCount={mediaItems.length}
-        onOpenAddMediaModal={() => {
-          setMediaToEdit(null);
-          setIsMediaFormOpen(true);
-        }}
         activeTab={mainTab}
         onSelectTab={setMainTab}
         totalGames={collectionGames.length}
@@ -1146,6 +1062,7 @@ export default function HomePage() {
           setDefaultIsWishlist(false);
           setIsFormModalOpen(true);
         }}
+        onOpenScanGamesModal={() => setIsGameScanOpen(true)}
         onOpenBatchModal={() => setIsBatchModalOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenRandomModal={() => setIsRandomModalOpen(true)}
@@ -1159,6 +1076,7 @@ export default function HomePage() {
         onOpenWrapUpModal={() => setIsWrapUpModalOpen(true)}
         onOpenGamerCardModal={() => setIsGamerCardModalOpen(true)}
         onOpenVersionRadarModal={() => setIsVersionRadarOpen(true)}
+        onOpenSpotlight={() => setIsSpotlightOpen(true)}
         onEnrichMetadata={handleEnrichMetadata}
         onSyncSteamHours={handleSyncSteamHours}
         isEnriching={isEnriching}
@@ -1167,234 +1085,6 @@ export default function HomePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeVault === "MEDIA" ? (
-          <div>
-            {/* Media Bird's eye statistics */}
-            <MediaStatsBar
-              mediaItems={mediaItems}
-              activeTypeFilter={mediaTypeFilter}
-              onFilterByType={setMediaTypeFilter}
-              activeStatusFilter={mediaStatusFilter}
-              onFilterByStatus={setMediaStatusFilter}
-            />
-
-            {/* Media Filter & Search Bar */}
-            <MediaFilterBar
-              search={mediaSearch}
-              onSearchChange={setMediaSearch}
-              typeFilter={mediaTypeFilter}
-              onTypeFilterChange={setMediaTypeFilter}
-              statusFilter={mediaStatusFilter}
-              onStatusFilterChange={setMediaStatusFilter}
-              qualityFilter={mediaQualityFilter}
-              onQualityFilterChange={setMediaQualityFilter}
-              favoriteOnly={mediaFavoriteOnly}
-              onFavoriteOnlyToggle={() => setMediaFavoriteOnly(!mediaFavoriteOnly)}
-              sortBy={mediaSortBy}
-              onSortByChange={setMediaSortBy}
-              viewMode={mediaViewMode}
-              onViewModeChange={setMediaViewMode}
-              categoryCounts={mediaCategoryCounts}
-              onOpenScanModal={() => setIsMediaScanOpen(true)}
-            />
-
-            {/* Loading */}
-            {mediaLoading && (
-              <div className="py-24 flex flex-col items-center justify-center text-zinc-500 gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-                <p className="text-sm">A carregar filmes e séries...</p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!mediaLoading && mediaItems.length === 0 && (
-              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8">
-                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
-                  <Film className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-1">A tua coleção de Cinema & TV está pronta!</h3>
-                <p className="text-sm text-zinc-400 max-w-md mb-6">
-                  Começa a adicionar os teus filmes favoritos, séries que estás a acompanhar ou animes com metadados e posters automáticos.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMediaToEdit(null);
-                    setIsMediaFormOpen(true);
-                  }}
-                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar Primeiro Filme / Série
-                </button>
-              </div>
-            )}
-
-            {/* No matches for search/filters */}
-            {!mediaLoading && mediaItems.length > 0 && filteredMedia.length === 0 && (
-              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/30 border border-zinc-800/80 rounded-3xl p-8">
-                <div className="text-4xl mb-3">🔍</div>
-                <h3 className="text-lg font-bold text-zinc-200 mb-1">Nenhum título encontrado</h3>
-                <p className="text-xs text-zinc-400 max-w-sm mb-4">
-                  Nenhum filme ou série corresponde aos filtros atuais. Tenta pesquisar outro termo ou limpar os filtros.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMediaSearch("");
-                    setMediaTypeFilter("ALL");
-                    setMediaStatusFilter("ALL");
-                    setMediaQualityFilter("ALL");
-                    setMediaFavoriteOnly(false);
-                  }}
-                  className="text-xs text-purple-400 hover:text-purple-300 font-semibold underline cursor-pointer"
-                >
-                  Redefinir filtros
-                </button>
-              </div>
-            )}
-
-            {/* Media Grid Normal */}
-            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "grid" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
-                {filteredMedia.map((item) => (
-                  <MediaCard
-                    key={item.id}
-                    media={item}
-                    onClick={() => setMediaDetail(item)}
-                    onEdit={() => {
-                      setMediaToEdit(item);
-                      setIsMediaFormOpen(true);
-                    }}
-                    onDelete={() => handleDeleteMedia(item)}
-                    onToggleFavorite={handleToggleMediaFavorite}
-                    onUpdateStatus={(m, st) => handleUpdateMediaStatus(m, st)}
-                    onIncrementEpisode={handleIncrementEpisode}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Media Grid Compacto (Densa, mais títulos no ecrã) */}
-            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "compact" && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3">
-                {filteredMedia.map((item) => (
-                  <MediaCard
-                    key={item.id}
-                    media={item}
-                    compact={true}
-                    onClick={() => setMediaDetail(item)}
-                    onEdit={() => {
-                      setMediaToEdit(item);
-                      setIsMediaFormOpen(true);
-                    }}
-                    onDelete={() => handleDeleteMedia(item)}
-                    onToggleFavorite={handleToggleMediaFavorite}
-                    onUpdateStatus={(m, st) => handleUpdateMediaStatus(m, st)}
-                    onIncrementEpisode={handleIncrementEpisode}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Media Tabela / Lista Compacta */}
-            {!mediaLoading && filteredMedia.length > 0 && mediaViewMode === "list" && (
-              <MediaListView
-                mediaItems={filteredMedia}
-                onSelectMedia={(item) => setMediaDetail(item)}
-                onEditMedia={(item) => {
-                  setMediaToEdit(item);
-                  setIsMediaFormOpen(true);
-                }}
-                onDeleteMedia={handleDeleteMedia}
-                onToggleFavorite={handleToggleMediaFavorite}
-                onUpdateStatus={handleUpdateMediaStatus}
-                onIncrementEpisode={handleIncrementEpisode}
-              />
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Workspace Tab Switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-zinc-800/80">
-          <div className="flex items-center gap-2 p-1.5 bg-zinc-900/90 border border-zinc-800 rounded-2xl shadow-inner">
-            <button
-              type="button"
-              onClick={() => setMainTab("COLLECTION")}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer ${
-                mainTab === "COLLECTION"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/35"
-                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
-              }`}
-            >
-              <Gamepad2 className="w-4 h-4" />
-              <span>Minha Coleção</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-mono font-semibold ${
-                  mainTab === "COLLECTION"
-                    ? "bg-indigo-700/80 text-white"
-                    : "bg-zinc-800 text-zinc-400"
-                }`}
-              >
-                {collectionGames.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("WISHLIST")}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2.5 transition-all cursor-pointer ${
-                mainTab === "WISHLIST"
-                  ? "bg-pink-600 text-white shadow-lg shadow-pink-600/35"
-                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
-              }`}
-            >
-              <Bookmark className="w-4 h-4 text-pink-300" />
-              <span>Wishlist & Radar</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-mono font-semibold ${
-                  mainTab === "WISHLIST"
-                    ? "bg-pink-700/80 text-white"
-                    : "bg-zinc-800 text-zinc-400"
-                }`}
-              >
-                {wishlistCount}
-              </span>
-            </button>
-          </div>
-
-          {/* Quick CTA depending on main tab */}
-          <div className="flex items-center gap-2.5">
-            {mainTab === "COLLECTION" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setGameToEdit(null);
-                  setDefaultIsWishlist(false);
-                  setIsFormModalOpen(true);
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Novo Jogo</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setGameToEdit(null);
-                  setDefaultIsWishlist(true);
-                  setIsFormModalOpen(true);
-                }}
-                className="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-pink-600/25 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Adicionar ao Radar</span>
-              </button>
-            )}
-          </div>
-        </div>
-
         {mainTab === "WISHLIST" ? (
           <WishlistView
             games={games}
@@ -1413,185 +1103,74 @@ export default function HomePage() {
             onSelectGameDetail={(game) => setGameDetail(game)}
           />
         ) : (
-          <>
-            {/* Bird's Eye Statistics */}
-            <StatsBar
-              games={collectionGames}
-              activeStatusFilter={statusFilter}
-              onFilterByStatus={(st) => setStatusFilter(st)}
-              activeOriginFilter={originFilter}
-              onFilterByOrigin={(og) => setOriginFilter(og)}
-              activeArchiveFilter={archiveFilter}
-              onFilterByArchive={(arch) => setArchiveFilter(arch)}
-            />
-
-            {/* Hall of Fame Featured Vitrina */}
-            <HallOfFame
-              games={collectionGames}
-              onSelectGame={(g) => setGameDetail(g)}
-              onToggleFavorite={handleToggleFavorite}
-              onAutoPickTopGames={handleAutoPickTopFavorites}
-            />
-
-            {/* Custom Categories Filter Tabs */}
-            <CategoryFilterTabs
-              categories={categories}
-              activeCategory={activeCategoryFilter}
-              onSelectCategory={(cat) => setActiveCategoryFilter(cat)}
-              onOpenManageModal={() => {
-                setCategoryAssignMode(false);
-                setIsCategoryModalOpen(true);
-              }}
-              categoryCounts={categoryGameCounts}
-              totalGamesCount={collectionGames.length}
-            />
-
-            {/* Filter & Search Bar */}
-            <FilterBar
-              search={search}
-              onSearchChange={setSearch}
-              status={statusFilter}
-              onStatusChange={setStatusFilter}
-              originType={originFilter}
-              onOriginTypeChange={setOriginFilter}
-              platform={platformFilter}
-              onPlatformChange={setPlatformFilter}
-              tagFilter={tagFilter}
-              onTagFilterChange={setTagFilter}
-              durationFilter={durationFilter}
-              onDurationFilterChange={setDurationFilter}
-              eraFilter={eraFilter}
-              onEraFilterChange={setEraFilter}
-              favoriteOnly={favoriteOnly}
-              onFavoriteOnlyToggle={() => setFavoriteOnly(!favoriteOnly)}
-              archiveFilter={archiveFilter}
-              onArchiveFilterChange={setArchiveFilter}
-              sortBy={sortBy}
-              onSortByChange={setSortBy}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              availablePlatforms={availablePlatforms}
-              availableTags={availableTags}
-              archivedCount={collectionGames.filter((g) => g.isArchived).length}
-            />
-
-            {/* Loading Spinner */}
-            {loading && (
-              <div className="py-24 flex flex-col items-center justify-center text-zinc-500 gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                <p className="text-sm">A carregar a tua biblioteca...</p>
-              </div>
-            )}
-
-            {/* Empty Collection State */}
-            {!loading && collectionGames.length === 0 && (
-              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-4">
-                  <Ghost className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-1">A tua coleção está vazia!</h3>
-                <p className="text-sm text-zinc-400 max-w-md mb-6">
-                  Começa a catalogar os teus jogos favoritos — sejam da Steam, FitGirl repacks, ROMs de emulador ou cópias físicas.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGameToEdit(null);
-                      setDefaultIsWishlist(false);
-                      setIsFormModalOpen(true);
-                    }}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar Jogo
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* No Matches Found Filter State */}
-            {!loading && collectionGames.length > 0 && filteredGames.length === 0 && (
-              <div className="py-20 text-center flex flex-col items-center justify-center bg-zinc-900/30 border border-zinc-800/80 rounded-3xl p-8">
-                <div className="text-4xl mb-3">🔍</div>
-                <h3 className="text-lg font-bold text-zinc-200 mb-1">Nenhum jogo encontrado</h3>
-                <p className="text-xs text-zinc-400 max-w-sm mb-4">
-                  Nenhum item corresponde aos filtros selecionados. Tenta pesquisar outro termo ou limpar os filtros.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch("");
-                    setStatusFilter("ALL");
-                    setOriginFilter("ALL");
-                    setPlatformFilter("ALL");
-                    setTagFilter("ALL");
-                    setDurationFilter("ALL");
-                    setEraFilter("ALL");
-                    setFavoriteOnly(false);
-                    setArchiveFilter("ALL");
-                    setActiveCategoryFilter("ALL");
-                  }}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline cursor-pointer"
-                >
-                  Redefinir todos os filtros
-                </button>
-              </div>
-            )}
-
-            {/* Games Grid View */}
-            {!loading && filteredGames.length > 0 && viewMode === "grid" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
-                {filteredGames.map((game) => (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    onClick={() => setGameDetail(game)}
-                    onEdit={() => {
-                      setGameToEdit(game);
-                      setDefaultIsWishlist(false);
-                      setIsFormModalOpen(true);
-                    }}
-                    onDelete={() => handleDeleteGame(game)}
-                    onToggleArchive={handleToggleArchive}
-                    onToggleInstalled={handleToggleInstalled}
-                    onToggleFavorite={handleToggleFavorite}
-                    onQuickUpdateStatus={(g, st) => handleUpdateStatus(g, st)}
-                    isSelected={selectedGameIds.includes(game.id)}
-                    onToggleSelect={handleToggleSelectGame}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Games List / Table View */}
-            {!loading && filteredGames.length > 0 && viewMode === "list" && (
-              <GameListView
-                games={filteredGames}
-                onSelectGame={(game) => setGameDetail(game)}
-                onEditGame={(game) => {
-                  setGameToEdit(game);
-                  setDefaultIsWishlist(false);
-                  setIsFormModalOpen(true);
-                }}
-                onDeleteGame={(game) => handleDeleteGame(game)}
-                onToggleArchive={handleToggleArchive}
-                onToggleFavorite={handleToggleFavorite}
-                onQuickUpdateStatus={(g, st) => handleUpdateStatus(g, st)}
-                selectedGameIds={selectedGameIds}
-                onToggleSelectGame={handleToggleSelectGame}
-                onToggleSelectAll={handleToggleSelectAllFiltered}
-                allSelected={allFilteredSelected}
-              />
-            )}
-          </>
-        )}
-          </>
+          <GamesVaultSection
+            collectionGames={collectionGames}
+            filteredGames={filteredGames}
+            categories={categories}
+            loading={loading}
+            search={search}
+            onSearchChange={setSearch}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            originFilter={originFilter}
+            onOriginFilterChange={setOriginFilter}
+            platformFilter={platformFilter}
+            onPlatformFilterChange={setPlatformFilter}
+            tagFilter={tagFilter}
+            onTagFilterChange={setTagFilter}
+            durationFilter={durationFilter}
+            onDurationFilterChange={setDurationFilter}
+            eraFilter={eraFilter}
+            onEraFilterChange={setEraFilter}
+            favoriteOnly={favoriteOnly}
+            onFavoriteOnlyToggle={() => setFavoriteOnly(!favoriteOnly)}
+            archiveFilter={archiveFilter}
+            onArchiveFilterChange={setArchiveFilter}
+            activeCategoryFilter={activeCategoryFilter}
+            onActiveCategoryFilterChange={setActiveCategoryFilter}
+            categoryGameCounts={categoryGameCounts}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            availablePlatforms={availablePlatforms}
+            availableTags={availableTags}
+            selectedGameIds={selectedGameIds}
+            selectedGamesSet={selectedGamesSet}
+            allFilteredSelected={allFilteredSelected}
+            onToggleSelectGame={handleToggleSelectGame}
+            onToggleSelectAllFiltered={handleToggleSelectAllFiltered}
+            onOpenManageCategories={() => {
+              setCategoryAssignMode(false);
+              setIsCategoryModalOpen(true);
+            }}
+            onOpenAddGame={() => {
+              setGameToEdit(null);
+              setDefaultIsWishlist(false);
+              setIsFormModalOpen(true);
+            }}
+            onOpenScanModal={() => setIsGameScanOpen(true)}
+            onRescanFolders={handleRescanGameFolders}
+            isRescanning={isRescanningGames}
+            onOpenBatchModal={() => setIsBatchModalOpen(true)}
+            onSelectGameDetail={setGameDetail}
+            onEditGame={(game) => {
+              setGameToEdit(game);
+              setDefaultIsWishlist(false);
+              setIsFormModalOpen(true);
+            }}
+            onDeleteGame={handleDeleteGame}
+            onToggleArchive={handleToggleArchive}
+            onToggleInstalled={handleToggleInstalled}
+            onToggleFavorite={handleToggleFavorite}
+            onQuickUpdateStatus={(g, st) => handleUpdateStatus(g, st)}
+            onAutoPickTopFavorites={handleAutoPickTopFavorites}
+          />
         )}
       </main>
 
       {/* Floating Bulk Action Bar */}
-      {activeVault === "GAMES" && mainTab === "COLLECTION" && (
+      {mainTab === "COLLECTION" && (
         <BulkActionBar
           selectedCount={selectedGameIds.length}
           totalFilteredCount={filteredGames.length}
@@ -1606,6 +1185,7 @@ export default function HomePage() {
           onBulkDelete={handleBulkDelete}
           onBulkToggleArchive={handleBulkToggleArchive}
           onBulkTogglePlatinum={handleBulkTogglePlatinum}
+          onBulkUpdateStatus={(st) => handleBulkApplyEdit({ status: st as any })}
         />
       )}
 
@@ -1679,6 +1259,16 @@ export default function HomePage() {
         }}
       />
 
+      {/* Game Folder Scanner Modal */}
+      <GameScanModal
+        isOpen={isGameScanOpen}
+        onClose={() => setIsGameScanOpen(false)}
+        onImportSuccess={async () => {
+          await fetchGames();
+          showToast("Jogos importados do disco com sucesso!");
+        }}
+      />
+
       {/* Backup & Restore Modal */}
       <BackupModal
         isOpen={isBackupModalOpen}
@@ -1686,6 +1276,7 @@ export default function HomePage() {
         onRestoreSuccess={() => {
           fetchGames();
           fetchCategories();
+          fetchGoals();
           showToast("Coleção restaurada com sucesso!");
         }}
       />
@@ -1703,20 +1294,6 @@ export default function HomePage() {
         isOpen={isStatsModalOpen}
         onClose={() => setIsStatsModalOpen(false)}
         games={games}
-      />
-
-      {/* Wishlist Modal */}
-      <WishlistModal
-        isOpen={isWishlistModalOpen}
-        onClose={() => setIsWishlistModalOpen(false)}
-        games={games}
-        onAddWishlistGame={() => {
-          setGameToEdit(null);
-          setDefaultIsWishlist(true);
-          setIsFormModalOpen(true);
-        }}
-        onMoveToCollection={handleMoveToCollection}
-        onDeleteGame={handleDeleteGame}
       />
 
       {/* Backlog Goals Modal */}
@@ -1755,40 +1332,26 @@ export default function HomePage() {
         onRefreshGames={fetchGames}
       />
 
-      {/* Media Add / Edit Modal */}
-      <MediaFormModal
-        isOpen={isMediaFormOpen}
-        onClose={() => {
-          setIsMediaFormOpen(false);
-          setMediaToEdit(null);
+      {/* Global Spotlight Command Palette (Ctrl + K) */}
+      <SpotlightModal
+        isOpen={isSpotlightOpen}
+        onClose={() => setIsSpotlightOpen(false)}
+        onOpen={() => setIsSpotlightOpen(true)}
+        games={collectionGames}
+        onSelectGame={(game) => setGameDetail(game)}
+        onOpenRandomModal={() => setIsRandomModalOpen(true)}
+        onOpenStatsModal={() => setIsStatsModalOpen(true)}
+        onOpenWrapUpModal={() => setIsWrapUpModalOpen(true)}
+        onOpenScanGamesModal={() => setIsGameScanOpen(true)}
+        onOpenAddGameModal={() => {
+          setGameToEdit(null);
+          setDefaultIsWishlist(false);
+          setIsFormModalOpen(true);
         }}
-        onSave={handleSaveMedia}
-        initialMedia={mediaToEdit}
-      />
-
-      {/* Media Detail Modal */}
-      <MediaDetailModal
-        media={mediaDetail}
-        onClose={() => setMediaDetail(null)}
-        onEdit={(m) => {
-          setMediaToEdit(m);
-          setIsMediaFormOpen(true);
-        }}
-        onDelete={handleDeleteMedia}
-        onUpdateStatus={handleUpdateMediaStatus}
-        onIncrementEpisode={handleIncrementEpisode}
-        onDecrementEpisode={handleDecrementEpisode}
-        onToggleFavorite={handleToggleMediaFavorite}
-      />
-
-      {/* Media Folder Scanner Modal */}
-      <MediaScanModal
-        isOpen={isMediaScanOpen}
-        onClose={() => setIsMediaScanOpen(false)}
-        onImportSuccess={async () => {
-          await fetchMediaItems();
-          showToast("Títulos importados com sucesso para a videoteca!");
-        }}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
+        onOpenVersionRadarModal={() => setIsVersionRadarOpen(true)}
+        onOpenGamerCardModal={() => setIsGamerCardModalOpen(true)}
+        onOpenGoalsModal={() => setIsGoalsModalOpen(true)}
       />
     </div>
   );

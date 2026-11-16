@@ -1,7 +1,21 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
 import { GameItem } from "@/types/game";
 import { OriginBadge } from "./OriginBadge";
-import { Dices, RefreshCw, X, Sparkles, Clock } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
+import { requestGameLaunch } from "@/lib/game-actions";
+import {
+  Dices,
+  RefreshCw,
+  X,
+  Sparkles,
+  Clock,
+  Gamepad2,
+  HardDrive,
+  Play,
+  Star,
+} from "lucide-react";
 
 interface RandomPickerModalProps {
   isOpen: boolean;
@@ -17,162 +31,264 @@ export function RandomPickerModal({
   onSelectGame,
 }: RandomPickerModalProps) {
   const [onlyBacklog, setOnlyBacklog] = useState(true);
+  const [onlyShortGames, setOnlyShortGames] = useState(false);
+  const [onlyInstalled, setOnlyInstalled] = useState(false);
+
   const [selectedGame, setSelectedGame] = useState<GameItem | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Filter pool
   const candidateGames = games.filter((g) => {
     if (g.isWishlist) return false;
-    if (onlyBacklog && g.status !== "BACKLOG" && g.status !== "PLAYING" && g.status !== "AVAILABLE") return false;
+    if (
+      onlyBacklog &&
+      g.status !== "BACKLOG" &&
+      g.status !== "PLAYING" &&
+      g.status !== "AVAILABLE" &&
+      g.status !== "NOT_STARTED"
+    ) {
+      return false;
+    }
+    if (onlyInstalled && !g.isInstalled) return false;
+    if (onlyShortGames) {
+      if (!g.timeToBeat) return false;
+      const match = g.timeToBeat.match(/(\d+(?:\.\d+)?)\s*h/i);
+      if (!match || parseFloat(match[1]) > 15) return false;
+    }
     return true;
   });
 
+  const stopSpin = () => {
+    if (spinIntervalRef.current) {
+      clearInterval(spinIntervalRef.current);
+      spinIntervalRef.current = null;
+    }
+    setIsSpinning(false);
+  };
+
   const spinWheel = () => {
+    stopSpin();
     if (candidateGames.length === 0) {
       setSelectedGame(null);
       return;
     }
-
+    const pool = candidateGames;
     setIsSpinning(true);
     let counter = 0;
     const maxSpins = 16;
-    const intervalTime = 70;
+    const intervalTime = 65;
 
-    const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * candidateGames.length);
-      setSelectedGame(candidateGames[randomIndex]);
+    spinIntervalRef.current = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      setSelectedGame(pool[randomIndex]);
+      if (counter % 2 === 0) playUiSound("click");
       counter++;
 
       if (counter >= maxSpins) {
-        clearInterval(interval);
-        setIsSpinning(false);
+        stopSpin();
+        playUiSound("platinum");
       }
     }, intervalTime);
   };
 
+  // Spin on open and whenever a filter changes; stop the timer on close/unmount
+  // so it never keeps firing (and playing sounds) behind a closed modal.
   useEffect(() => {
-    if (isOpen) {
-      spinWheel();
-    }
+    if (isOpen) spinWheel();
+    return stopSpin;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, onlyBacklog, onlyShortGames, onlyInstalled]);
 
   if (!isOpen) return null;
 
+  const currentCandidatesCount = candidateGames.length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-      <div className="relative w-full max-w-lg bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden p-6 text-center space-y-6">
+      <div className="relative w-full max-w-lg bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden p-6 text-center space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="p-2.5 rounded-2xl border bg-indigo-500/15 text-indigo-400 border-indigo-500/30"
+            >
               <Dices className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h2 className="text-base font-bold text-white">Roleta do Backlog</h2>
-              <p className="text-[11px] text-zinc-400">Não sabes o que jogar? Nós escolhemos por ti!</p>
+              <h2 className="text-base font-extrabold text-white tracking-tight">
+                Roleta de Decisão VaultCraft
+              </h2>
+              <p className="text-[11px] text-zinc-400">
+                Não sabes o que jogar hoje? Deixa o destino escolher!
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center justify-center gap-3 text-xs bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800">
-          <label className="flex items-center gap-1.5 text-zinc-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={onlyBacklog}
-              onChange={(e) => setOnlyBacklog(e.target.checked)}
-              className="rounded text-indigo-600 bg-zinc-900 border-zinc-700 focus:ring-0"
-            />
-            <Clock className="w-3.5 h-3.5 text-indigo-400" />
-            Apenas Jogos Pendentes (Backlog / A Jogar / Disponíveis)
-          </label>
-        </div>
+        {/* Filter Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setOnlyBacklog((v) => !v);
+              }}
+              className={`h-7 px-3 rounded-xl font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                onlyBacklog
+                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                  : "bg-zinc-950/70 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+              }`}
+            >
+              <Clock className="w-3 h-3" />
+              <span>Apenas Pendentes</span>
+            </button>
 
-        {/* Selected Game Card Display */}
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setOnlyShortGames((v) => !v);
+              }}
+              className={`h-7 px-3 rounded-xl font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                onlyShortGames
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                  : "bg-zinc-950/70 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+              }`}
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Curtos (&le; 15h)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playUiSound("toggle");
+                setOnlyInstalled((v) => !v);
+              }}
+              className={`h-7 px-3 rounded-xl font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                onlyInstalled
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  : "bg-zinc-950/70 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+              }`}
+            >
+              <HardDrive className="w-3 h-3" />
+              <span>Instalados no PC</span>
+            </button>
+          </div>
+
+        {/* Selected Result Display */}
         {selectedGame ? (
-          <div
-            className={`p-4 bg-zinc-950/80 border rounded-2xl transition-all duration-300 ${
-              isSpinning
-                ? "border-indigo-500/50 scale-98 blur-[0.5px]"
-                : "border-indigo-500 shadow-xl shadow-indigo-950/50 scale-100"
-            }`}
-          >
-            <div className="flex gap-4 items-center text-left">
-              <div className="w-24 sm:w-28 aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-700 shadow-lg flex-shrink-0">
-                {selectedGame.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={selectedGame.coverUrl}
-                    alt={selectedGame.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl">
-                    🎮
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0 space-y-2">
-                <OriginBadge
-                  originType={selectedGame.originType}
-                  repackGroup={selectedGame.repackGroup}
-                />
-                <h3 className="font-extrabold text-white text-lg truncate">
-                  {selectedGame.title}
-                </h3>
-                <div className="text-xs text-zinc-400">
-                  {selectedGame.platform}
-                  {selectedGame.releaseYear ? ` • ${selectedGame.releaseYear}` : ""}
+            <div
+              className={`p-4 bg-zinc-950/90 border rounded-2xl transition-all duration-300 ${
+                isSpinning
+                  ? "border-indigo-500/40 scale-[0.98] blur-[0.5px]"
+                  : "border-indigo-500/80 shadow-xl shadow-indigo-950/50 scale-100"
+              }`}
+            >
+              <div className="flex gap-4 items-center text-left">
+                <div className="case-poster w-24 sm:w-28 aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden border border-white/10 shadow-lg flex-shrink-0">
+                  {selectedGame.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedGame.coverUrl}
+                      alt={selectedGame.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                      <Gamepad2 className="w-8 h-8" />
+                    </div>
+                  )}
                 </div>
 
-                {selectedGame.timeToBeat && (
-                  <div className="text-[11px] text-indigo-300 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/30 inline-block font-mono">
-                    ⏱️ {selectedGame.timeToBeat}
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <OriginBadge
+                      originType={selectedGame.originType}
+                      repackGroup={selectedGame.repackGroup}
+                    />
+                    {selectedGame.rating && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold font-mono inline-flex items-center gap-1">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        {selectedGame.rating}
+                      </span>
+                    )}
                   </div>
-                )}
+                  <h3 className="font-extrabold text-white text-lg truncate">
+                    {selectedGame.title}
+                  </h3>
+                  <div className="text-xs text-zinc-400">
+                    {selectedGame.platform}
+                    {selectedGame.releaseYear ? ` • ${selectedGame.releaseYear}` : ""}
+                  </div>
+
+                  {selectedGame.timeToBeat && (
+                    <div className="text-[11px] text-indigo-300 bg-indigo-950/50 px-2.5 py-0.5 rounded-lg border border-indigo-500/30 inline-flex items-center gap-1.5 font-mono">
+                      <Clock className="w-3 h-3 text-indigo-400" />
+                      <span>{selectedGame.timeToBeat}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="py-8 text-zinc-500 text-xs">
-            Nenhum jogo encontrado com os filtros selecionados.
-          </div>
-        )}
+          ) : (
+            <div className="py-10 text-zinc-500 text-xs bg-zinc-950/50 rounded-2xl border border-zinc-800/60">
+              Nenhum jogo encontrado com os filtros selecionados ({currentCandidatesCount} candidatos).
+            </div>
+          )}
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-center gap-3 pt-2">
+        <div className="flex items-center justify-center gap-2.5 pt-1">
           <button
             type="button"
-            disabled={isSpinning || candidateGames.length === 0}
+            disabled={isSpinning || currentCandidatesCount === 0}
             onClick={spinWheel}
             className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSpinning ? "animate-spin" : ""}`} />
-            Sortear Outro
+            <span>Sortear Outro ({currentCandidatesCount})</span>
           </button>
 
           {selectedGame && (
-            <button
-              type="button"
-              disabled={isSpinning}
-              onClick={() => {
-                onSelectGame(selectedGame);
-                onClose();
-              }}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-indigo-600/30"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Ver Ficha do Jogo
-            </button>
+            <>
+              {(selectedGame.executablePath || selectedGame.storageLocation) && (
+                <button
+                  type="button"
+                  disabled={isSpinning}
+                  onClick={async () => {
+                    playUiSound("launch");
+                    await requestGameLaunch(selectedGame.id, "launch");
+                    onClose();
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-emerald-600/30"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Jogar Agora</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={isSpinning}
+                onClick={() => {
+                  playUiSound("open");
+                  onSelectGame(selectedGame);
+                  onClose();
+                }}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-indigo-600/30"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Ver Ficha</span>
+              </button>
+            </>
           )}
+
         </div>
       </div>
     </div>

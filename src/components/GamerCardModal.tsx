@@ -2,19 +2,20 @@
 
 import React, { useState } from "react";
 import { GameItem } from "@/types/game";
+import { VaultCraftLogo } from "./CraftIcons";
+import { playUiSound } from "@/lib/ui-sfx";
 import {
   X,
-  Download,
   Copy,
   Check,
   Printer,
   Sparkles,
-  Trophy,
-  Clock,
   Crown,
   FileSpreadsheet,
   FileCode,
   Share2,
+  Gamepad2,
+  Star,
 } from "lucide-react";
 
 interface GamerCardModalProps {
@@ -23,7 +24,11 @@ interface GamerCardModalProps {
   games: GameItem[];
 }
 
-export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) {
+export function GamerCardModal({
+  isOpen,
+  onClose,
+  games,
+}: GamerCardModalProps) {
   const [userName, setUserName] = useState("Colecionador / perfil-exemplo");
   const [copied, setCopied] = useState(false);
 
@@ -43,10 +48,15 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
 
   // Favorites or Top Played for showcase
   const favorites = collection.filter((g) => g.isFavorite);
-  const showcaseGames = (favorites.length > 0 ? favorites : [...collection].sort((a, b) => (b.hoursPlayed || 0) - (a.hoursPlayed || 0))).slice(0, 3);
+  const showcaseGames = (
+    favorites.length > 0
+      ? favorites
+      : [...collection].sort((a, b) => (b.hoursPlayed || 0) - (a.hoursPlayed || 0))
+  ).slice(0, 3);
 
   // CSV Export
   const handleExportCSV = () => {
+    playUiSound("success");
     const headers = [
       "ID",
       "Título",
@@ -84,18 +94,20 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Minha_Colecao_Jogos_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `VaultCraft_Jogos_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // JSON Export
   const handleExportJSON = () => {
+    playUiSound("success");
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(games, null, 2));
     const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `GameTracker_Backup_${new Date().toISOString().split("T")[0]}.json`);
+    downloadAnchor.setAttribute("download", `VaultCraft_Backup_${new Date().toISOString().split("T")[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -103,12 +115,13 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
 
   // Copy Markdown
   const handleCopyMarkdown = () => {
-    const md = `### 🎴 Cartão de Colecionador Gamer: ${userName}
-- 🎮 **Total de Jogos:** ${totalGames}
-- ⏱️ **Horas de Jogo:** ${totalHours}h (~${totalDays} dias de jogo)
-- 🏆 **Conclusões:** ${completed} concluídos | ${platinum} platinas (${finishRate}% da biblioteca)
-- ⭐ **Destaques:** ${showcaseGames.map((g) => g.title).join(", ")}
-*Gerado por projeto*`;
+    playUiSound("success");
+    const md = `### Cartão de Colecionador VaultCraft: ${userName}
+- **Total de Jogos:** ${totalGames}
+- **Horas de Jogo:** ${totalHours}h (~${totalDays} dias de jogo)
+- **Conclusões:** ${completed} concluídos | ${platinum} platinas (${finishRate}% da biblioteca)
+- **Destaques:** ${showcaseGames.map((g) => g.title).join(", ")}
+*Gerado por VaultCraft Studio*`;
 
     navigator.clipboard.writeText(md);
     setCopied(true);
@@ -117,7 +130,7 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80">
           <div className="flex items-center gap-2.5">
@@ -125,7 +138,9 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
               <Share2 className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Gamer Card & Exportação</h2>
+              <h2 className="text-base font-extrabold text-white tracking-tight">
+                Gamer Card & Exportação
+              </h2>
               <p className="text-[11px] text-zinc-400">
                 Visualiza o teu cartão de perfil e exporta a biblioteca em Excel ou PDF.
               </p>
@@ -135,7 +150,7 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -144,14 +159,14 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
         {/* Modal Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
           {/* THE GAMER CARD (Showcase View) */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-indigo-950 border-2 border-amber-500/40 shadow-2xl space-y-5 relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-indigo-950 border border-amber-500/40 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 right-0 -mr-10 -mt-10 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
             {/* Profile Bar */}
             <div className="flex items-center justify-between gap-3 relative z-10 border-b border-zinc-800/80 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-indigo-600/30">
-                  🐺
+                <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-white/10 flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                  <VaultCraftLogo className="w-8 h-8" />
                 </div>
                 <div>
                   <input
@@ -163,7 +178,7 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
                   />
                   <div className="text-[11px] text-amber-400 font-semibold flex items-center gap-1.5">
                     <Sparkles className="w-3 h-3 text-amber-400" />
-                    <span>Mestre do Backlog • Colecionador Lendário</span>
+                    <span>Mestre do Backlog • Colecionador VaultCraft</span>
                   </div>
                 </div>
               </div>
@@ -174,61 +189,69 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
               </div>
             </div>
 
-            {/* Key 4 Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 relative z-10">
-              <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
-                <span className="text-[10px] text-zinc-500 block">Biblioteca</span>
-                <span className="text-lg font-black text-white font-mono">{totalGames}</span>
+            {/* Key Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative z-10">
+              <div className="p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
+                <span className="text-[10px] text-zinc-500 block">Jogos</span>
+                <span className="text-base font-black text-white font-mono">{totalGames}</span>
               </div>
-              <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
-                <span className="text-[10px] text-zinc-500 block">Tempo Total</span>
-                <span className="text-lg font-black text-indigo-400 font-mono">{totalHours.toLocaleString()}h</span>
+              <div className="p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
+                <span className="text-[10px] text-zinc-500 block">Tempo</span>
+                <span className="text-base font-black text-indigo-400 font-mono">{totalHours.toLocaleString()}h</span>
               </div>
-              <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
+              <div className="p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
                 <span className="text-[10px] text-zinc-500 block">Conclusão</span>
-                <span className="text-lg font-black text-emerald-400 font-mono">{finishRate}%</span>
+                <span className="text-base font-black text-emerald-400 font-mono">{finishRate}%</span>
               </div>
-              <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5">
+              <div className="p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-center space-y-0.5 col-span-2 sm:col-span-1">
                 <span className="text-[10px] text-zinc-500 block">Platinas</span>
-                <span className="text-lg font-black text-amber-400 font-mono">{platinum} 🏆</span>
+                <span className="text-base font-black text-amber-400 font-mono inline-flex items-center gap-1">
+                  {platinum}
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                </span>
               </div>
             </div>
 
             {/* Showcase Games */}
-            <div className="space-y-2 relative z-10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-                ⭐ Jogos em Destaque
-              </span>
-              <div className="grid grid-cols-3 gap-2.5">
-                {showcaseGames.map((g) => (
-                  <div
-                    key={g.id}
-                    className="p-2 bg-zinc-950/80 border border-zinc-800 rounded-xl flex flex-col items-center text-center gap-1.5"
-                  >
-                    <div className="w-full aspect-[2/3] bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
-                      {g.coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.coverUrl} alt={g.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-lg">🎮</div>
-                      )}
+            {showcaseGames.length > 0 && (
+              <div className="space-y-2 relative z-10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  <span>Jogos em Destaque</span>
+                </span>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {showcaseGames.map((g) => (
+                    <div
+                      key={g.id}
+                      className="p-2 bg-zinc-950/80 border border-zinc-800 rounded-xl flex flex-col items-center text-center gap-1.5"
+                    >
+                      <div className="case-poster w-full aspect-[2/3] bg-zinc-900 rounded-lg overflow-hidden border border-white/10">
+                        {g.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={g.coverUrl} alt={g.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                            <Gamepad2 className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-bold text-[11px] text-zinc-200 truncate w-full">
+                        {g.title}
+                      </span>
+                      <span className="font-mono text-[10px] text-amber-400 font-semibold">
+                        {g.hoursPlayed}h
+                      </span>
                     </div>
-                    <span className="font-bold text-[11px] text-zinc-200 truncate w-full">
-                      {g.title}
-                    </span>
-                    <span className="font-mono text-[10px] text-amber-400 font-semibold">
-                      {g.hoursPlayed}h
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* EXPORT OPTIONS */}
           <div className="space-y-3">
             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-              📥 Opções de Exportação & Partilha
+              Opções de Exportação & Partilha
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -245,7 +268,7 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
                     Exportar Excel (CSV)
                   </span>
                   <span className="text-[10px] text-zinc-500">
-                    Planilha completa com horas, notas, géneros e estados.
+                    Folha de cálculo com horas, notas, géneros e estados.
                   </span>
                 </div>
               </button>
@@ -260,10 +283,10 @@ export function GamerCardModal({ isOpen, onClose, games }: GamerCardModalProps) 
                 </div>
                 <div>
                   <span className="font-bold text-zinc-100 block group-hover:text-indigo-300">
-                    Backup Completo (JSON)
+                    Backup de Jogos (JSON)
                   </span>
                   <span className="text-[10px] text-zinc-500">
-                    Ficheiro restaurável com todos os 340 jogos.
+                    Ficheiro restaurável com todos os {totalGames} jogos.
                   </span>
                 </div>
               </button>

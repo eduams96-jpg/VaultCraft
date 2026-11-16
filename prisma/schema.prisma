@@ -46,6 +46,7 @@ model Game {
   latestPatchNotesUrl String?   // Link oficial das notas de atualização
   latestPatchTitle    String?   // Título do patch oficial (ex: "Patch 5.01 is live!")
   isUpToDate          Boolean?  // null = não verificado, true = em dia, false = update disponível
+  externalLink        String?   // Link externo (Steam, FitGirl, DODI, IGDB, Wiki, etc.)
 
   isWishlist       Boolean   @default(false)
   wishlistStatus   String?   // WAITING_CRACK, WAITING_SALE, WAITING_RELEASE
@@ -54,6 +55,10 @@ model Game {
   completionDate   DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  @@index([isWishlist, isArchived, status])
+  @@index([originType, platform])
+  @@index([updatedAt])
 }
 
 model Category {
@@ -83,7 +88,7 @@ model MediaItem {
   originalTitle    String?
   type             String    @default("MOVIE") // MOVIE, SERIES, ANIME
   status           String    @default("PLAN_TO_WATCH") // PLAN_TO_WATCH, WATCHING, COMPLETED, PAUSED, DROPPED
-  rating           Int?      // 1-10
+  rating           Float?    // 1.0 - 10.0
   posterUrl        String?
   backdropUrl      String?
   releaseYear      Int?
@@ -106,6 +111,12 @@ model MediaItem {
   streamingService String?   // "Netflix", "HBO Max", "Disney+", "Prime Video", "Apple TV"
   
   isFavorite       Boolean   @default(false)
+  isArchived       Boolean   @default(false) // Arquivado / Guardado em disco externo / Cold storage
+  subtitles        String?   @default("SUBBED") // SUBBED, DUBBED, NO_SUB, NATIVE
+  hasTrailer       Boolean   @default(false)
+  hasTheme         Boolean   @default(false)
+  externalLink     String?   // Link externo (IMDb, Letterboxd, Stremio, etc.)
+  fileSizeGB       Float?    // Tamanho em GB
   userReview       String?
   customTags       String?
   imdbId           String?
@@ -114,4 +125,11 @@ model MediaItem {
   completionDate   DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  @@index([type, isArchived, status])
+  @@index([subtitles])
+  @@index([hasTrailer, hasTheme])
+  @@index([storageLocation])
+  @@index([imdbId])
+  @@index([updatedAt])
 }

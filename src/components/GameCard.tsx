@@ -6,7 +6,9 @@ import { OriginBadge } from "./OriginBadge";
 import { StatusBadge } from "./StatusBadge";
 import { ArchiveBadge } from "./ArchiveBadge";
 import { GameFeaturesBadges } from "./GameFeaturesBadges";
-import { Star, HardDrive, Clock, MoreVertical, Edit, Trash2, Check } from "lucide-react";
+import { Star, HardDrive, Clock, MoreVertical, Edit, Trash2, Check, Play, FolderOpen, Gamepad2, Archive, ExternalLink } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
+import { requestGameLaunch } from "@/lib/game-actions";
 
 interface GameCardProps {
   game: GameItem;
@@ -19,6 +21,7 @@ interface GameCardProps {
   onQuickUpdateStatus?: (game: GameItem, newStatus: string) => void;
   isSelected?: boolean;
   onToggleSelect?: (game: GameItem, e: React.MouseEvent) => void;
+  compact?: boolean;
 }
 
 export function GameCard({
@@ -32,14 +35,32 @@ export function GameCard({
   onQuickUpdateStatus,
   isSelected = false,
   onToggleSelect,
+  compact = false,
 }: GameCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
 
+  const canLaunch = Boolean(game.executablePath || game.storageLocation);
+  const isFoilHighlighted = Boolean(game.isPlatinum || game.status === "PLATINUM" || game.isFavorite);
+
+  const handleQuickLaunch = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canLaunch) return;
+    playUiSound("switch");
+    try {
+      await requestGameLaunch(game.id, "launch");
+    } catch {}
+  };
+
   return (
     <div
-      onClick={onClick}
-      className={`group relative bg-zinc-900 border rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1 ${
+      onClick={() => {
+        playUiSound("click");
+        onClick();
+      }}
+      className={`group relative bg-zinc-900/95 border rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1 ${
+        isFoilHighlighted ? "foil-border" : ""
+      } ${
         isSelected
           ? "border-indigo-500 ring-2 ring-indigo-500/70 shadow-indigo-950/60 bg-indigo-950/10"
           : game.isArchived
@@ -47,8 +68,21 @@ export function GameCard({
           : "border-zinc-800 hover:border-zinc-600"
       }`}
     >
-      {/* Poster Image Container */}
-      <div className="relative aspect-[2/3] w-full bg-zinc-950 overflow-hidden">
+      {/* Dynamic Ambiglow Layer */}
+      {game.coverUrl && (
+        <div
+          aria-hidden="true"
+          className="absolute -inset-2 pointer-events-none opacity-0 group-hover:opacity-45 transition-opacity duration-500 blur-2xl scale-110 z-0"
+          style={{
+            backgroundImage: `url("${game.coverUrl}")`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      )}
+
+      {/* Poster Image Container (3D Steelbook Case Overlay) */}
+      <div className="relative z-10 aspect-[2/3] w-full bg-zinc-950 overflow-hidden case-poster">
         {game.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -59,7 +93,7 @@ export function GameCard({
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-zinc-800 to-zinc-950">
-            <span className="text-3xl mb-2">🎮</span>
+            <Gamepad2 className="w-9 h-9 text-indigo-400/70 mb-2" />
             <span className="text-sm font-semibold text-zinc-300 line-clamp-3">
               {game.title}
             </span>
@@ -116,13 +150,13 @@ export function GameCard({
                   />
                   <div className="absolute left-0 top-full mt-1.5 w-40 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl py-1 z-40 text-xs animate-in fade-in zoom-in-95">
                     {[
-                      { key: "AVAILABLE", label: "Disponível", icon: "📦" },
-                      { key: "BACKLOG", label: "Backlog", icon: "⏳" },
-                      { key: "PLAYING", label: "A Jogar", icon: "🎮" },
-                      { key: "COMPLETED", label: "Concluído", icon: "✅" },
-                      { key: "PLATINUM", label: "Platinado", icon: "🏆" },
-                      { key: "PAUSED", label: "Em Pausa", icon: "⏸️" },
-                      { key: "NOT_STARTED", label: "Não Iniciado", icon: "⚪" },
+                      { key: "AVAILABLE", label: "Disponível", dot: "bg-cyan-400" },
+                      { key: "BACKLOG", label: "Backlog", dot: "bg-indigo-400" },
+                      { key: "PLAYING", label: "A Jogar", dot: "bg-emerald-400" },
+                      { key: "COMPLETED", label: "Concluído", dot: "bg-teal-400" },
+                      { key: "PLATINUM", label: "Platinado", dot: "bg-amber-400" },
+                      { key: "PAUSED", label: "Em Pausa", dot: "bg-yellow-400" },
+                      { key: "NOT_STARTED", label: "Não Iniciado", dot: "bg-zinc-500" },
                     ].map((s) => (
                       <button
                         key={s.key}
@@ -130,16 +164,17 @@ export function GameCard({
                         onClick={(e) => {
                           e.stopPropagation();
                           setStatusMenuOpen(false);
+                          playUiSound(s.key === "PLATINUM" ? "platinum" : "toggle");
                           onQuickUpdateStatus(game, s.key);
                         }}
-                        className={`w-full px-3 py-1.5 text-left flex items-center justify-between transition-colors ${
+                        className={`w-full px-3 py-1.5 text-left flex items-center justify-between transition-colors cursor-pointer ${
                           game.status === s.key
                             ? "bg-indigo-600/30 text-indigo-200 font-bold"
                             : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
                         }`}
                       >
-                        <span className="flex items-center gap-1.5">
-                          <span>{s.icon}</span>
+                        <span className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                           <span>{s.label}</span>
                         </span>
                         {game.status === s.key && <Check className="w-3 h-3 text-indigo-400" />}
@@ -162,13 +197,27 @@ export function GameCard({
             )}
           </div>
 
-          {/* Right: Quick Star (Hall of Fame) & Quick Menu Buttons */}
+          {/* Right: Quick Link, Star (Hall of Fame) & Quick Menu Buttons */}
           <div className="pointer-events-auto flex items-center gap-1">
+            {game.externalLink && (
+              <a
+                href={game.externalLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-lg bg-black/60 text-zinc-400 hover:text-sky-300 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-md"
+                title="Abrir Link do Jogo"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+
             {onToggleFavorite && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  playUiSound(!game.isFavorite ? "platinum" : "click");
                   onToggleFavorite(game);
                 }}
                 className={`p-1.5 rounded-lg transition-all backdrop-blur-md cursor-pointer ${
@@ -232,7 +281,7 @@ export function GameCard({
                       }}
                       className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-zinc-800 text-amber-300"
                     >
-                      <span className="text-xs">📦</span>
+                      <Archive className="w-3.5 h-3.5" />
                       {game.isArchived ? "Remover do Arquivo" : "Marcar Arquivado"}
                     </button>
                   )}
@@ -269,6 +318,28 @@ export function GameCard({
         </div>
       </div>
 
+        {/* 1-Click Launch / Open Folder Hover Action */}
+        {canLaunch && (
+          <button
+            type="button"
+            onClick={handleQuickLaunch}
+            className="absolute bottom-10 left-2.5 right-2.5 py-1.5 px-2.5 rounded-lg bg-indigo-600/95 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg backdrop-blur-md cursor-pointer"
+            title={game.executablePath ? "Iniciar jogo em 1 clique" : "Abrir pasta do jogo"}
+          >
+            {game.executablePath ? (
+              <>
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>Jogar</span>
+              </>
+            ) : (
+              <>
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>Abrir Pasta</span>
+              </>
+            )}
+          </button>
+        )}
+
         {/* Origin Badge overlay bottom-right of image */}
         <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
           <OriginBadge
@@ -287,9 +358,9 @@ export function GameCard({
       </div>
 
       {/* Content Info */}
-      <div className="p-3.5 flex flex-col flex-1 justify-between gap-2">
+      <div className={`relative z-10 ${compact ? "p-2.5" : "p-3.5"} flex flex-col flex-1 justify-between gap-2 bg-zinc-900/90 backdrop-blur-md`}>
         <div>
-          <h3 className="font-bold text-zinc-100 text-sm group-hover:text-indigo-300 transition-colors line-clamp-1">
+          <h3 className={`font-bold text-zinc-100 ${compact ? "text-xs" : "text-sm"} group-hover:text-indigo-300 transition-colors line-clamp-1`}>
             {game.title}
           </h3>
 
@@ -315,7 +386,7 @@ export function GameCard({
           </div>
 
           {/* Custom Categories Chips */}
-          {game.customCategories && (
+          {!compact && game.customCategories && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {game.customCategories
                 .split(",")
@@ -328,14 +399,14 @@ export function GameCard({
                     className="text-[9px] font-semibold px-1.5 py-0.2 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 truncate max-w-[110px]"
                     title={`Categoria: ${cat}`}
                   >
-                    📁 {cat}
+                    {cat}
                   </span>
                 ))}
             </div>
           )}
 
           {/* Savefile, Achievements & Platinado Badges */}
-          {(game.hasSavefile || game.hasAchievements || game.isPlatinum || game.status === "PLATINUM") && (
+          {!compact && (game.hasSavefile || game.hasAchievements || game.isPlatinum || game.status === "PLATINUM") && (
             <div className="pt-1.5">
               <GameFeaturesBadges
                 hasSavefile={game.hasSavefile}
@@ -347,52 +418,56 @@ export function GameCard({
         </div>
 
         {/* Footer Info: Installed, Archive toggle & Hours */}
-        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400">
-          <button
-            type="button"
-            onClick={(e) => {
-              if (onToggleInstalled) {
-                e.stopPropagation();
-                onToggleInstalled(game);
-              }
-            }}
-            className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-            title={game.storageLocation || (game.isInstalled ? "Instalado no computador (clica para alterar)" : "Não instalado")}
-          >
-            {game.isInstalled ? (
-              <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                <HardDrive className="w-3 h-3" />
-                <span>Instalado</span>
-              </span>
-            ) : (
-              <span className="text-zinc-500 hover:text-zinc-400">Desinstalado</span>
-            )}
-          </button>
-
-          <div className="flex items-center gap-2">
-            {!game.isArchived && onToggleArchive && (
-              <button
-                type="button"
-                onClick={(e) => {
+        {!compact && (
+          <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400">
+            <button
+              type="button"
+              onClick={(e) => {
+                if (onToggleInstalled) {
                   e.stopPropagation();
-                  onToggleArchive(game);
-                }}
-                className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-500 hover:text-amber-300 transition-all flex items-center gap-1"
-                title="Marcar como arquivado"
-              >
-                <span>📦</span>
-                <span>Arquivar</span>
-              </button>
-            )}
+                  playUiSound("toggle");
+                  onToggleInstalled(game);
+                }
+              }}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+              title={game.storageLocation || (game.isInstalled ? "Instalado no computador (clica para alterar)" : "Não instalado")}
+            >
+              {game.isInstalled ? (
+                <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                  <HardDrive className="w-3 h-3" />
+                  <span>Instalado</span>
+                </span>
+              ) : (
+                <span className="text-zinc-500 hover:text-zinc-400">Desinstalado</span>
+              )}
+            </button>
 
-            {game.hoursPlayed > 0 && (
-              <div className="flex items-center gap-1 text-zinc-400 font-mono">
-                <Clock className="w-3 h-3 text-zinc-500" />
-                <span>{game.hoursPlayed}h</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {!game.isArchived && onToggleArchive && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playUiSound("click");
+                    onToggleArchive(game);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-500 hover:text-amber-300 transition-all flex items-center gap-1"
+                  title="Marcar como arquivado"
+                >
+                  <Archive className="w-3 h-3" />
+                  <span>Arquivar</span>
+                </button>
+              )}
+
+              {game.hoursPlayed > 0 && (
+                <div className="flex items-center gap-1 text-zinc-400 font-mono">
+                  <Clock className="w-3 h-3 text-zinc-500" />
+                  <span>{game.hoursPlayed}h</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

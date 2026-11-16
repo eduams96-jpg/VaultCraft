@@ -28,7 +28,21 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Link2,
+  Play,
+  Gamepad2,
+  RotateCcw,
+  History,
 } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
+import { requestGameLaunch } from "@/lib/game-actions";
+
+interface SaveBackupSnapshot {
+  name: string;
+  createdAt: string;
+  sizeKB: number;
+  filesCount: number;
+}
 
 interface GameDetailModalProps {
   game: GameItem | null;
@@ -63,15 +77,77 @@ export function GameDetailModal({
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
   const [localGame, setLocalGame] = useState<GameItem | null>(game);
   const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
+  const [linkInput, setLinkInput] = useState("");
+  const [isEditingLink, setIsEditingLink] = useState(false);
+  const [isSavingLink, setIsSavingLink] = useState(false);
+  const [saveBackups, setSaveBackups] = useState<SaveBackupSnapshot[]>([]);
+  const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+  const [restoringBackupName, setRestoringBackupName] = useState<string | null>(null);
+  const [saveLocationInput, setSaveLocationInput] = useState("");
+  const [isEditingSaveLoc, setIsEditingSaveLoc] = useState(false);
+  const [isSavingSaveLoc, setIsSavingSaveLoc] = useState(false);
+  const [isRescanningGameDisk, setIsRescanningGameDisk] = useState(false);
+  const [diskRescanFeedback, setDiskRescanFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentTimestamp(Date.now());
   }, []);
 
+  const gameId = game?.id ?? null;
+  const gameTitle = game?.title ?? null;
+  const gameExternalLink = game?.externalLink || "";
+  const gameSaveLocation = game?.saveLocation || "";
+
+  // Mantém a cópia local alinhada com o objeto do pai (toggles, edições, etc.)
   useEffect(() => {
     setLocalGame(game);
-    setUpdateCheckMsg(null);
   }, [game]);
+
+  // As mensagens de feedback só são limpas ao abrir OUTRO jogo. Antes eram limpas em cada
+  // atualização do mesmo jogo, pelo que o resultado de "verificar atualizações" /
+  // "verificar disco" desaparecia no mesmo instante em que era mostrado.
+  useEffect(() => {
+    setUpdateCheckMsg(null);
+    setDiskRescanFeedback(null);
+  }, [gameId]);
+
+  useEffect(() => {
+    setLinkInput(gameExternalLink);
+    setIsEditingLink(!gameExternalLink);
+  }, [gameId, gameExternalLink]);
+
+  useEffect(() => {
+    setSaveLocationInput(gameSaveLocation);
+    setIsEditingSaveLoc(false);
+  }, [gameId, gameSaveLocation]);
+
+  // Lista de backups de saves: só recarrega quando muda o jogo (ou o título, que dá nome
+  // às pastas de backup) e ignora respostas atrasadas de um jogo aberto anteriormente.
+  useEffect(() => {
+    if (!gameId) {
+      setSaveBackups([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingBackups(true);
+    fetch(`/api/games/${gameId}/save`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setSaveBackups(data && Array.isArray(data.backups) ? data.backups : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSaveBackups([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingBackups(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, gameTitle]);
 
   if (!game) return null;
 
@@ -85,7 +161,35 @@ export function GameDetailModal({
     }
   };
 
+  const handleRescanGameDisk = async () => {
+    if (!activeGame.executablePath && !activeGame.storageLocation) return;
+    setIsRescanningGameDisk(true);
+    setDiskRescanFeedback(null);
+    playUiSound("click");
+    try {
+      const res = await fetch("/api/games/rescan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeGame.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.game) {
+        setLocalGame(data.game);
+        onGameUpdated?.(data.game);
+        setDiskRescanFeedback(data.message || "Disco verificado!");
+        playUiSound("success");
+      } else {
+        setDiskRescanFeedback(data.error || "Não foi possível verificar o disco.");
+      }
+    } catch {
+      setDiskRescanFeedback("Erro ao verificar caminho no disco.");
+    } finally {
+      setIsRescanningGameDisk(false);
+    }
+  };
+
   const handleOpenSaves = async () => {
+    playUiSound("open");
     try {
       const res = await fetch(`/api/games/${activeGame.id}/save`, {
         method: "POST",
@@ -102,6 +206,7 @@ export function GameDetailModal({
   const handleBackupSaves = async () => {
     try {
       setSaveBackupStatus("A criar backup...");
+      playUiSound("click");
       const res = await fetch(`/api/games/${activeGame.id}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,14 +217,106 @@ export function GameDetailModal({
         alert(data.error);
         setSaveBackupStatus(null);
       } else {
-        setSaveBackupStatus("Backup criado!");
-        setTimeout(() => setSaveBackupStatus(null), 3000);
-        alert(data.message);
+        if (Array.isArray(data.backups)) {
+          setSaveBackups(data.backups);
+        }
+        if (data.updatedGame) {
+          setLocalGame(data.updatedGame);
+          onGameUpdated?.(data.updatedGame);
+        }
+        playUiSound("success");
+        setSaveBackupStatus("Backup guardado no Cofre!");
+        setTimeout(() => setSaveBackupStatus(null), 3500);
       }
     } catch (e) {
       console.error(e);
       setSaveBackupStatus(null);
     }
+  };
+
+  const handleRestoreSaveBackup = async (backupName: string) => {
+    if (
+      !confirm(
+        `Restaurar o savegame "${backupName}"?\n\nIsto irá copiar os ficheiros deste snapshot de volta para a pasta de saves do jogo (${activeGame.saveLocation}). Os saves atuais são guardados primeiro num snapshot de segurança.`
+      )
+    ) {
+      return;
+    }
+
+    setRestoringBackupName(backupName);
+    setSaveBackupStatus("A restaurar save...");
+    try {
+      const res = await fetch(`/api/games/${activeGame.id}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Erro ao restaurar savegame.");
+        setSaveBackupStatus(null);
+      } else {
+        if (Array.isArray(data.backups)) {
+          setSaveBackups(data.backups);
+        }
+        playUiSound("success");
+        setSaveBackupStatus("Save restaurado com sucesso!");
+        setTimeout(() => setSaveBackupStatus(null), 3500);
+      }
+    } catch {
+      setSaveBackupStatus(null);
+    } finally {
+      setRestoringBackupName(null);
+    }
+  };
+
+  const handleOpenBackupFolder = async (backupName?: string) => {
+    playUiSound("open");
+    try {
+      await fetch(`/api/games/${activeGame.id}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "openBackup", backupName }),
+      });
+    } catch {}
+  };
+
+  const handleDeleteSaveBackup = async (backupName: string) => {
+    if (!confirm(`Remover o backup "${backupName}" do cofre?`)) return;
+    try {
+      const res = await fetch(`/api/games/${activeGame.id}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteBackup", backupName }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.backups)) {
+        setSaveBackups(data.backups);
+        playUiSound("click");
+      }
+    } catch {}
+  };
+
+  const handleSaveSaveLocation = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingSaveLoc(true);
+    try {
+      const res = await fetch(`/api/games/${activeGame.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          saveLocation: saveLocationInput.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setLocalGame(updated);
+        onGameUpdated?.(updated);
+        setIsEditingSaveLoc(false);
+        playUiSound("success");
+      }
+    } catch {}
+    setIsSavingSaveLoc(false);
   };
 
   const handleCheckUpdate = async () => {
@@ -162,6 +359,32 @@ export function GameDetailModal({
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveExternalLink = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = linkInput.trim();
+    setIsSavingLink(true);
+    try {
+      const res = await fetch(`/api/games/${activeGame.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          externalLink: trimmed || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setLocalGame(updated);
+        onGameUpdated?.(updated);
+        setLinkInput(updated.externalLink || "");
+        setIsEditingLink(!updated.externalLink);
+      }
+    } catch (err) {
+      console.error("Erro ao guardar link:", err);
+    } finally {
+      setIsSavingLink(false);
     }
   };
 
@@ -212,7 +435,7 @@ export function GameDetailModal({
         <div className="p-6 -mt-24 sm:-mt-32 relative z-10">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
             {/* Box Art Poster */}
-            <div className="w-36 sm:w-44 aspect-[2/3] bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl flex-shrink-0">
+            <div className="case-poster w-36 sm:w-44 aspect-[2/3] bg-zinc-950 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl flex-shrink-0">
               {activeGame.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -221,8 +444,8 @@ export function GameDetailModal({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-3xl">
-                  🎮
+                <div className="w-full h-full flex flex-col items-center justify-center text-indigo-400">
+                  <Gamepad2 className="w-10 h-10" />
                 </div>
               )}
             </div>
@@ -379,11 +602,81 @@ export function GameDetailModal({
             </div>
           </div>
 
+          {/* External Link Bar (Editable right inside Game Profile) */}
+          <div className="mt-4 p-3.5 bg-zinc-950/60 border border-zinc-800 rounded-2xl">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold text-sky-300 flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-sky-400" />
+                <span>Link do Jogo (Steam, Repack, Site Oficial, Wiki)</span>
+              </span>
+              {activeGame.externalLink && !isEditingLink && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLinkInput(activeGame.externalLink || "");
+                    setIsEditingLink(true);
+                  }}
+                  className="text-[11px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit className="w-3 h-3" />
+                  <span>Alterar</span>
+                </button>
+              )}
+            </div>
+
+            {isEditingLink || !activeGame.externalLink ? (
+              <form onSubmit={handleSaveExternalLink} className="flex items-center gap-2">
+                <input
+                  type="url"
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                  placeholder="https://store.steampowered.com/app/... ou link direto do release"
+                  className="flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 focus:border-sky-500 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingLink}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {isSavingLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>Guardar Link</span>
+                </button>
+                {activeGame.externalLink && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLinkInput(activeGame.externalLink || "");
+                      setIsEditingLink(false);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </form>
+            ) : (
+              <div className="flex items-center justify-between gap-3 bg-zinc-900/90 border border-zinc-800 rounded-xl px-3 py-2">
+                <span className="text-xs font-mono text-zinc-300 truncate flex-1">
+                  {activeGame.externalLink}
+                </span>
+                <a
+                  href={activeGame.externalLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1 rounded-lg bg-sky-600/20 hover:bg-sky-600/35 border border-sky-500/40 text-sky-300 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors"
+                >
+                  <span>Abrir Link</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+          </div>
+
           {/* Detailed Storage & Saves Section */}
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Storage Box */}
-            <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                   <HardDrive className="w-4 h-4 text-indigo-400" />
                   Instalação no Computador
@@ -399,57 +692,240 @@ export function GameDetailModal({
                 </span>
               </div>
 
-              <div className="text-xs text-zinc-400 mt-2">
-                <span className="text-zinc-500 block mb-0.5">Pasta do Jogo:</span>
+              <div className="text-xs text-zinc-400">
+                <span className="text-zinc-500 block mb-0.5">Pasta / Executável:</span>
                 <div className="p-2.5 bg-zinc-900/90 rounded-xl font-mono text-[11px] text-zinc-200 border border-zinc-800 flex items-center gap-2 break-all">
                   <FolderOpen className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                  <span>{activeGame.storageLocation || "Não especificado"}</span>
+                  <span>{activeGame.executablePath || activeGame.storageLocation || "Não especificado"}</span>
                 </div>
               </div>
+
+              {(activeGame.executablePath || activeGame.storageLocation) && (
+                <div className="space-y-2 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        playUiSound("launch");
+                        await requestGameLaunch(activeGame.id, "launch");
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-200 text-[11px] font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current text-emerald-300" />
+                      <span>Jogar Agora</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        playUiSound("open");
+                        await requestGameLaunch(activeGame.id, "open");
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Abrir Pasta</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRescanGameDisk}
+                      disabled={isRescanningGameDisk}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/40 text-indigo-200 text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      title="Verificar no disco se o jogo e o executável estão presentes"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-indigo-300 ${isRescanningGameDisk ? "animate-spin" : ""}`} />
+                      <span>{isRescanningGameDisk ? "A verificar..." : "Re-verificar Disco"}</span>
+                    </button>
+                  </div>
+                  {diskRescanFeedback && (
+                    <div className="px-2.5 py-1.5 rounded-lg bg-indigo-950/50 border border-indigo-500/30 text-[11px] text-indigo-200 font-mono">
+                      {diskRescanFeedback}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Savegame Manager Box */}
-            <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
+            {/* Savegame Manager Box (Cofre Real de Savegames) */}
+            <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                   <Save className="w-4 h-4 text-emerald-400" />
-                  Gestor de Saves (Savegames)
+                  <span>Cofre de Savegames</span>
+                  {saveBackups.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {saveBackups.length} snapshot{saveBackups.length > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </span>
-                {saveBackupStatus && (
-                  <span className="text-[11px] text-emerald-400 font-semibold animate-pulse">
-                    {saveBackupStatus}
-                  </span>
-                )}
-              </div>
-
-              <div className="text-xs text-zinc-400 mt-2">
-                <span className="text-zinc-500 block mb-0.5">Local dos Saves:</span>
-                <div className="p-2.5 bg-zinc-900/90 rounded-xl font-mono text-[11px] text-zinc-200 border border-zinc-800 flex items-center gap-2 break-all">
-                  <FolderArchive className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  <span>{activeGame.saveLocation || "Não configurado (ex: %APPDATA%\\...)"}</span>
+                <div className="flex items-center gap-2">
+                  {saveBackupStatus && (
+                    <span className="text-[11px] text-emerald-400 font-semibold animate-pulse">
+                      {saveBackupStatus}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaveLocationInput(activeGame.saveLocation || "");
+                      setIsEditingSaveLoc((prev) => !prev);
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit className="w-3 h-3" />
+                    <span>{activeGame.saveLocation ? "Alterar Caminho" : "Configurar"}</span>
+                  </button>
                 </div>
               </div>
 
+              {isEditingSaveLoc ? (
+                <form onSubmit={handleSaveSaveLocation} className="space-y-2 pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={saveLocationInput}
+                      onChange={(e) => setSaveLocationInput(e.target.value)}
+                      placeholder="Ex: %APPDATA%\EldenRing ou C:\Users\...\Saved Games"
+                      className="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700 focus:border-emerald-500 rounded-xl text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSavingSaveLoc}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingSaveLoc ? "..." : "Guardar"}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[
+                      "%APPDATA%\\",
+                      "%LOCALAPPDATA%\\",
+                      "%USERPROFILE%\\Saved Games\\",
+                      "%USERPROFILE%\\Documents\\My Games\\",
+                    ].map((tpl) => (
+                      <button
+                        key={tpl}
+                        type="button"
+                        onClick={() => setSaveLocationInput(tpl)}
+                        className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                      >
+                        {tpl}
+                      </button>
+                    ))}
+                  </div>
+                </form>
+              ) : (
+                <div className="text-xs text-zinc-400">
+                  <span className="text-zinc-500 block mb-0.5">Local dos Saves:</span>
+                  <div className="p-2.5 bg-zinc-900/90 rounded-xl font-mono text-[11px] text-zinc-200 border border-zinc-800 flex items-center gap-2 break-all">
+                    <FolderArchive className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>{activeGame.saveLocation || "Não configurado (clica em Configurar acima)"}</span>
+                  </div>
+                </div>
+              )}
+
               {activeGame.saveLocation && (
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
                   <button
                     type="button"
                     onClick={handleOpenSaves}
                     className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    Abrir Pasta de Saves
+                    <FolderOpen className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Abrir Pasta</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleBackupSaves}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/40 text-emerald-200 text-[11px] font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Save className="w-3.5 h-3.5" />
-                    Criar Backup do Save
+                    <Save className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Criar Backup Agora</span>
                   </button>
                 </div>
               )}
+
+              {/* Historical Save Backups Vault List */}
+              {isLoadingBackups ? (
+                <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 pt-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>A verificar snapshots no cofre...</span>
+                </div>
+              ) : saveBackups.length > 0 ? (
+                <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-zinc-400 flex items-center gap-1">
+                      <History className="w-3 h-3 text-emerald-400" />
+                      <span>Histórico de Backups no Cofre:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenBackupFolder()}
+                      className="text-[10px] text-zinc-400 hover:text-emerald-300 underline cursor-pointer"
+                    >
+                      Abrir Cofre Geral
+                    </button>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    {saveBackups.map((snap) => {
+                      const d = new Date(snap.createdAt);
+                      const formattedDate = `${d.toLocaleDateString("pt-PT")} ${d
+                        .toLocaleTimeString("pt-PT")
+                        .slice(0, 5)}`;
+                      const sizeLabel =
+                        snap.sizeKB >= 1024
+                          ? `${(snap.sizeKB / 1024).toFixed(1)} MB`
+                          : `${snap.sizeKB} KB`;
+
+                      return (
+                        <div
+                          key={snap.name}
+                          className="p-2 rounded-xl bg-zinc-900/90 border border-zinc-800/90 flex items-center justify-between gap-2 text-[11px]"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-mono font-bold text-zinc-200 truncate">
+                              {formattedDate}
+                            </div>
+                            <div className="text-[10px] text-zinc-500 font-mono">
+                              {sizeLabel} • {snap.filesCount} fich.
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {activeGame.saveLocation && (
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreSaveBackup(snap.name)}
+                                disabled={restoringBackupName === snap.name}
+                                className="px-2 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                title="Restaurar este snapshot para a pasta do jogo"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Restaurar</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBackupFolder(snap.name)}
+                              className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                              title="Abrir pasta deste backup"
+                            >
+                              <FolderOpen className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSaveBackup(snap.name)}
+                              className="p-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-500/30 cursor-pointer"
+                              title="Eliminar snapshot"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

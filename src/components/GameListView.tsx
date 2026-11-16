@@ -6,7 +6,21 @@ import { OriginBadge } from "./OriginBadge";
 import { StatusBadge } from "./StatusBadge";
 import { ArchiveBadge } from "./ArchiveBadge";
 import { GameFeaturesBadges } from "./GameFeaturesBadges";
-import { Star, HardDrive, Edit, Trash2, Check, CheckSquare, Square } from "lucide-react";
+import {
+  Star,
+  HardDrive,
+  Edit,
+  Trash2,
+  Check,
+  CheckSquare,
+  Square,
+  Play,
+  FolderOpen,
+  ExternalLink,
+  Gamepad2,
+} from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
+import { requestGameLaunch } from "@/lib/game-actions";
 
 interface GameListViewProps {
   games: GameItem[];
@@ -120,7 +134,7 @@ export function GameListView({
                           <Star className={`w-3.5 h-3.5 ${game.isFavorite ? "fill-amber-400" : ""}`} />
                         </button>
                       )}
-                      <div className="w-10 h-14 bg-zinc-950 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-800">
+                      <div className="case-poster w-10 h-14 bg-zinc-950 rounded-lg overflow-hidden flex-shrink-0 border border-zinc-800">
                         {game.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -129,8 +143,8 @@ export function GameListView({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs">
-                            🎮
+                          <div className="w-full h-full flex items-center justify-center text-indigo-400">
+                            <Gamepad2 className="w-4 h-4" />
                           </div>
                         )}
                       </div>
@@ -185,13 +199,13 @@ export function GameListView({
                         onChange={(e) => onQuickUpdateStatus(game, e.target.value)}
                         className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 cursor-pointer transition-colors"
                       >
-                        <option value="AVAILABLE">📦 Disponível</option>
-                        <option value="BACKLOG">⏳ Backlog</option>
-                        <option value="PLAYING">🎮 A Jogar</option>
-                        <option value="COMPLETED">✅ Concluído</option>
-                        <option value="PLATINUM">🏆 Platinado</option>
-                        <option value="PAUSED">⏸️ Em Pausa</option>
-                        <option value="NOT_STARTED">⚪ Não Iniciado</option>
+                        <option value="AVAILABLE">Disponível</option>
+                        <option value="BACKLOG">Backlog</option>
+                        <option value="PLAYING">A Jogar</option>
+                        <option value="COMPLETED">Concluído</option>
+                        <option value="PLATINUM">Platinado</option>
+                        <option value="PAUSED">Em Pausa</option>
+                        <option value="NOT_STARTED">Não Iniciado</option>
                       </select>
                     ) : (
                       <StatusBadge status={game.status} />
@@ -223,7 +237,7 @@ export function GameListView({
                               key={i}
                               className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
                             >
-                              📁 {cat}
+                              {cat}
                             </span>
                           ))}
                       </div>
@@ -235,7 +249,7 @@ export function GameListView({
                   {/* Rating */}
                   <td className="py-3 px-4">
                     {game.rating ? (
-                      <div className="flex items-center gap-1 text-amber-400 font-bold">
+                      <div className="flex items-center gap-1 text-amber-400 font-bold font-mono">
                         <Star className="w-3.5 h-3.5 fill-amber-400" />
                         <span>{game.rating}/10</span>
                       </div>
@@ -271,6 +285,30 @@ export function GameListView({
                       className="flex items-center justify-end gap-1"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      {(game.executablePath || game.storageLocation) && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            playUiSound("launch");
+                            await requestGameLaunch(game.id, "launch");
+                          }}
+                          className="p-1.5 text-emerald-400 hover:bg-emerald-950/40 rounded-lg transition-colors cursor-pointer"
+                          title={game.executablePath ? "Jogar Agora" : "Abrir Pasta do Jogo"}
+                        >
+                          {game.executablePath ? <Play className="w-3.5 h-3.5 fill-current" /> : <FolderOpen className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      {game.externalLink && (
+                        <a
+                          href={game.externalLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-zinc-400 hover:text-sky-400 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                          title="Abrir Link Externo"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={() => onEditGame(game)}

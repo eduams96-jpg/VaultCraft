@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "howlongtobeat": "^1.8.0",
     "lucide-react": "^1.68.0",
     "next": "16.4.5",
     "prisma": "6.19.3",

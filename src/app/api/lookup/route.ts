@@ -111,6 +111,7 @@ export async function GET(request: Request) {
                 pcRequirements,
                 screenshots,
                 timeToBeat: hltbData?.formattedTime || undefined,
+                externalLink: `https://store.steampowered.com/app/${appId}`,
               };
             })
           );

@@ -43,4 +43,5 @@ next-env.d.ts
 # backups & sqlite journals
 *.backup*
 *.db-journal
+/backups/
 

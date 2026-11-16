@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { GoalItem } from "@/types/game";
+import { playUiSound } from "@/lib/ui-sfx";
 import {
   X,
   Target,
@@ -13,6 +14,7 @@ import {
   Trophy,
   Clock,
   Loader2,
+  Zap,
 } from "lucide-react";
 
 interface BacklogGoalsModalProps {
@@ -46,6 +48,7 @@ export function BacklogGoalsModal({
     setIsSubmitting(true);
     try {
       await onCreateGoal(newTitle.trim(), newTarget, newCategory);
+      playUiSound("success");
       setNewTitle("");
       setNewTarget(3);
     } finally {
@@ -57,6 +60,7 @@ export function BacklogGoalsModal({
     setIsSubmitting(true);
     try {
       await onCreateGoal(title, target, category);
+      playUiSound("success");
     } finally {
       setIsSubmitting(false);
     }
@@ -67,7 +71,7 @@ export function BacklogGoalsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80">
           <div className="flex items-center gap-2.5">
@@ -75,14 +79,14 @@ export function BacklogGoalsModal({
               <Target className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
                 <span>Metas & Desafios de Backlog</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">
                   {activeGoals.length} ativas
                 </span>
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Define objetivos pessoais para manter o foco e abater a tua lista de jogos.
+                Define objetivos pessoais para manter o foco e abater a tua lista de jogos e séries.
               </p>
             </div>
           </div>
@@ -90,7 +94,7 @@ export function BacklogGoalsModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -99,16 +103,37 @@ export function BacklogGoalsModal({
         {/* Modal Body */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs">
           {/* Quick Presets Bar */}
-          <div className="p-3 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block">
-              ⚡ 1-Clique: Adicionar Desafios Pré-Feitos
+          <div className="p-3.5 bg-zinc-950/70 border border-zinc-800/80 rounded-2xl space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-amber-400" />
+              <span>1-Clique: Adicionar Desafios Pré-Feitos</span>
             </span>
             <div className="flex flex-wrap gap-1.5">
               {[
-                { title: "Terminar 3 Jogos Curtos (< 10h)", target: 3, cat: "SHORT_GAMES", icon: "⚡" },
-                { title: "Platinar 2 Jogos este Mês", target: 2, cat: "PLATINUM", icon: "🏆" },
-                { title: "Passar 5 Jogos do Backlog", target: 5, cat: "BACKLOG", icon: "⏳" },
-                { title: "Alcançar 10 Jogos Fechados", target: 10, cat: "COMPLETED", icon: "🎯" },
+                {
+                  title: "Terminar 3 Jogos Curtos (< 10h)",
+                  target: 3,
+                  cat: "SHORT_GAMES",
+                  icon: <Zap className="w-3 h-3 text-amber-400" />,
+                },
+                {
+                  title: "Platinar 2 Jogos este Mês",
+                  target: 2,
+                  cat: "PLATINUM",
+                  icon: <Trophy className="w-3 h-3 text-amber-400" />,
+                },
+                {
+                  title: "Passar 5 Jogos do Backlog",
+                  target: 5,
+                  cat: "BACKLOG",
+                  icon: <Clock className="w-3 h-3 text-indigo-400" />,
+                },
+                {
+                  title: "Alcançar 10 Jogos Fechados",
+                  target: 10,
+                  cat: "COMPLETED",
+                  icon: <Target className="w-3 h-3 text-emerald-400" />,
+                },
               ].map((p, idx) => (
                 <button
                   key={idx}
@@ -117,7 +142,7 @@ export function BacklogGoalsModal({
                   onClick={() => handleAddPreset(p.title, p.target, p.cat)}
                   className="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/60 text-[11px] font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <span>{p.icon}</span>
+                  {p.icon}
                   <span>{p.title}</span>
                 </button>
               ))}
@@ -186,8 +211,11 @@ export function BacklogGoalsModal({
                         <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
                           <button
                             type="button"
-                            onClick={() => onUpdateGoal(goal.id, Math.max(0, goal.currentCount - 1))}
-                            className="px-2 py-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold"
+                            onClick={() => {
+                              playUiSound("click");
+                              onUpdateGoal(goal.id, Math.max(0, goal.currentCount - 1));
+                            }}
+                            className="px-2 py-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold cursor-pointer"
                             title="-1 no progresso"
                           >
                             -
@@ -199,9 +227,11 @@ export function BacklogGoalsModal({
                             type="button"
                             onClick={() => {
                               const next = goal.currentCount + 1;
-                              onUpdateGoal(goal.id, next, next >= goal.targetCount);
+                              const done = next >= goal.targetCount;
+                              playUiSound(done ? "platinum" : "click");
+                              onUpdateGoal(goal.id, next, done);
                             }}
-                            className="px-2 py-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold"
+                            className="px-2 py-0.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-bold cursor-pointer"
                             title="+1 no progresso"
                           >
                             +
@@ -211,8 +241,11 @@ export function BacklogGoalsModal({
                         {/* Complete Checkbox */}
                         <button
                           type="button"
-                          onClick={() => onUpdateGoal(goal.id, goal.targetCount, true)}
-                          className="p-1 rounded-lg bg-zinc-900 hover:bg-emerald-950/60 text-zinc-400 hover:text-emerald-400 border border-zinc-800"
+                          onClick={() => {
+                            playUiSound("platinum");
+                            onUpdateGoal(goal.id, goal.targetCount, true);
+                          }}
+                          className="p-1 rounded-lg bg-zinc-900 hover:bg-emerald-950/60 text-zinc-400 hover:text-emerald-400 border border-zinc-800 cursor-pointer"
                           title="Marcar como Concluída"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -222,7 +255,7 @@ export function BacklogGoalsModal({
                         <button
                           type="button"
                           onClick={() => onDeleteGoal(goal.id)}
-                          className="p-1 rounded-lg hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400"
+                          className="p-1 rounded-lg hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 cursor-pointer"
                           title="Eliminar meta"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -256,20 +289,20 @@ export function BacklogGoalsModal({
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Metas Concluídas ({completedGoals.length})
               </span>
-              <div className="space-y-1.5 opacity-75">
+              <div className="space-y-1.5 opacity-80">
                 {completedGoals.map((goal) => (
                   <div
                     key={goal.id}
                     className="p-2.5 bg-zinc-950/50 border border-emerald-500/20 rounded-xl flex items-center justify-between text-xs"
                   >
                     <span className="line-through text-zinc-400 truncate flex items-center gap-2">
-                      <span>🎉</span>
+                      <Trophy className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>{goal.title}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => onDeleteGoal(goal.id)}
-                      className="p-1 text-zinc-600 hover:text-rose-400"
+                      className="p-1 text-zinc-600 hover:text-rose-400 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

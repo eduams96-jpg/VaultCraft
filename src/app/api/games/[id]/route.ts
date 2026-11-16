@@ -30,12 +30,22 @@ export async function PUT(
     const { id } = await props.params;
     const body = await request.json();
 
+    if (body.title !== undefined && (typeof body.title !== "string" || !body.title.trim())) {
+      return NextResponse.json({ error: "O título do jogo não pode ficar vazio" }, { status: 400 });
+    }
+
+    // isPlatinum e status andam juntos: PLATINUM <=> isPlatinum. Mudar só o estado para
+    // outro valor (ex.: "A jogar") tem de limpar a flag, senão o jogo fica platinado "fantasma".
     const isPlatinum =
       body.isPlatinum !== undefined
         ? Boolean(body.isPlatinum)
         : body.status === "PLATINUM"
         ? true
+        : body.status !== undefined
+        ? false
         : undefined;
+
+    const hoursPlayedNum = body.hoursPlayed !== undefined ? Number(body.hoursPlayed) : undefined;
 
     const statusVal =
       isPlatinum === true
@@ -74,7 +84,10 @@ export async function PUT(
         installNotes: body.installNotes !== undefined ? body.installNotes?.trim() || null : undefined,
         userReview: body.userReview !== undefined ? body.userReview?.trim() || null : undefined,
         screenshots: body.screenshots !== undefined ? body.screenshots?.trim() || null : undefined,
-        hoursPlayed: body.hoursPlayed !== undefined ? Number(body.hoursPlayed) : undefined,
+        hoursPlayed:
+          hoursPlayedNum !== undefined && Number.isFinite(hoursPlayedNum)
+            ? Math.max(0, hoursPlayedNum)
+            : undefined,
         gameVersion: body.gameVersion !== undefined ? body.gameVersion?.trim() || null : undefined,
         versionDate: body.versionDate !== undefined ? (body.versionDate ? new Date(body.versionDate) : null) : undefined,
         latestKnownVersion: body.latestKnownVersion !== undefined ? body.latestKnownVersion?.trim() || null : undefined,
@@ -82,11 +95,19 @@ export async function PUT(
         latestPatchNotesUrl: body.latestPatchNotesUrl !== undefined ? body.latestPatchNotesUrl?.trim() || null : undefined,
         latestPatchTitle: body.latestPatchTitle !== undefined ? body.latestPatchTitle?.trim() || null : undefined,
         isUpToDate: body.isUpToDate !== undefined ? (body.isUpToDate === null ? null : Boolean(body.isUpToDate)) : undefined,
+        externalLink: body.externalLink !== undefined ? body.externalLink?.trim() || null : undefined,
         isWishlist: body.isWishlist !== undefined ? Boolean(body.isWishlist) : undefined,
         wishlistStatus: body.wishlistStatus !== undefined ? body.wishlistStatus?.trim() || null : undefined,
         wishlistPriority: body.wishlistPriority !== undefined ? body.wishlistPriority?.trim() || null : undefined,
         targetPrice: body.targetPrice !== undefined ? (body.targetPrice ? Number(body.targetPrice) : null) : undefined,
-        completionDate: body.completionDate ? new Date(body.completionDate) : null,
+        // Só mexe na data se o campo vier no pedido: os toggles rápidos (favorito, arquivo,
+        // estado...) enviam updates parciais e antes apagavam a data de conclusão.
+        completionDate:
+          body.completionDate !== undefined
+            ? body.completionDate && !isNaN(Date.parse(body.completionDate))
+              ? new Date(body.completionDate)
+              : null
+            : undefined,
       },
     });
 

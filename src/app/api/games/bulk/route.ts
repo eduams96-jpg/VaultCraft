@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createAutoSnapshot } from "@/lib/auto-backup";
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
 
     // 1. BULK DELETE
     if (action === "delete") {
+      await createAutoSnapshot("before-games-bulk-delete");
       const result = await prisma.game.deleteMany({
         where: {
           id: { in: validIds },
@@ -120,9 +122,8 @@ export async function POST(request: Request) {
 
       if (typeof updates.status === "string" && updates.status) {
         dataToUpdate.status = updates.status;
-        if (updates.status === "PLATINUM") {
-          dataToUpdate.isPlatinum = true;
-        }
+        // PLATINUM <=> isPlatinum (um isPlatinum explícito mais abaixo tem prioridade)
+        dataToUpdate.isPlatinum = updates.status === "PLATINUM";
       }
 
       if (typeof updates.platform === "string" && updates.platform) {

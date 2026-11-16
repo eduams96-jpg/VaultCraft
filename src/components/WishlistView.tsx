@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { GameItem } from "@/types/game";
 import {
   Bookmark,
@@ -14,12 +14,14 @@ import {
   Star,
   Clock,
   TrendingDown,
-  CheckCircle2,
   Calendar,
-  Layers,
-  HelpCircle,
   ExternalLink,
+  ShieldAlert,
+  Tag,
+  Target,
+  RefreshCw,
 } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
 
 interface WishlistViewProps {
   games: GameItem[];
@@ -51,6 +53,7 @@ export function WishlistView({
   const [filterRadar, setFilterRadar] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [checkingAllPrices, setCheckingAllPrices] = useState(false);
 
   // Store live Steam prices cached by game ID
   const [steamPrices, setSteamPrices] = useState<Record<string, SteamPriceState>>({});
@@ -99,7 +102,6 @@ export function WishlistView({
   const filteredList = useMemo(() => {
     return wishlistGames
       .filter((g) => {
-        // Search
         if (search.trim()) {
           const q = search.toLowerCase();
           const matchTitle = g.title.toLowerCase().includes(q);
@@ -108,12 +110,10 @@ export function WishlistView({
           if (!matchTitle && !matchGenre && !matchPlatform) return false;
         }
 
-        // Radar status
         if (filterRadar !== "ALL" && g.wishlistStatus !== filterRadar) {
           return false;
         }
 
-        // Priority
         if (filterPriority !== "ALL") {
           const p = g.wishlistPriority || "MEDIUM";
           if (p !== filterPriority) return false;
@@ -122,7 +122,6 @@ export function WishlistView({
         return true;
       })
       .sort((a, b) => {
-        // High priority first, then updated date
         const prioScore = (p?: string | null) =>
           p === "HIGH" ? 3 : p === "MEDIUM" || !p ? 2 : 1;
         const diff = prioScore(b.wishlistPriority) - prioScore(a.wishlistPriority);
@@ -175,8 +174,23 @@ export function WishlistView({
     }
   };
 
+  const handleCheckAllSteamPrices = async () => {
+    if (checkingAllPrices || filteredList.length === 0) return;
+    setCheckingAllPrices(true);
+    playUiSound("click");
+    try {
+      for (const game of filteredList) {
+        await handleCheckSteamPrice(game);
+      }
+      playUiSound("success");
+    } finally {
+      setCheckingAllPrices(false);
+    }
+  };
+
   const handleMove = async (game: GameItem) => {
     setMovingId(game.id);
+    playUiSound("platinum");
     try {
       await onMoveToCollection(game);
     } finally {
@@ -188,29 +202,29 @@ export function WishlistView({
     switch (status) {
       case "WAITING_CRACK":
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
-            <span>🏴‍☠️</span>
-            <span>Aguardar Crack / Repack</span>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 backdrop-blur-md">
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+            <span>Aguardar Repack</span>
           </span>
         );
       case "WAITING_SALE":
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-            <span>🏷️</span>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 backdrop-blur-md">
+            <Tag className="w-3.5 h-3.5 text-emerald-400" />
             <span>Aguardar Promoção</span>
           </span>
         );
       case "WAITING_RELEASE":
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
-            <span>📅</span>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 backdrop-blur-md">
+            <Calendar className="w-3.5 h-3.5 text-indigo-400" />
             <span>Aguardar Lançamento</span>
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 flex items-center gap-1.5">
-            <span>🎯</span>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-zinc-800/90 text-zinc-300 border border-zinc-700 flex items-center gap-1.5 backdrop-blur-md">
+            <Target className="w-3.5 h-3.5 text-pink-400" />
             <span>Radar Ativo</span>
           </span>
         );
@@ -221,14 +235,14 @@ export function WishlistView({
     switch (priority) {
       case "HIGH":
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm shadow-rose-950/40">
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm shadow-rose-950/40 backdrop-blur-md">
             <Flame className="w-3.5 h-3.5 text-rose-400" />
             <span>Alta Prioridade</span>
           </span>
         );
       case "LOW":
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-800/90 text-zinc-400 border border-zinc-700/80 flex items-center gap-1">
+          <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-800/90 text-zinc-400 border border-zinc-700/80 flex items-center gap-1 backdrop-blur-md">
             <Clock className="w-3.5 h-3.5 text-zinc-500" />
             <span>Baixa Prioridade</span>
           </span>
@@ -236,7 +250,7 @@ export function WishlistView({
       case "MEDIUM":
       default:
         return (
-          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1 backdrop-blur-md">
             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30" />
             <span>Média Prioridade</span>
           </span>
@@ -245,108 +259,130 @@ export function WishlistView({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-5 animate-in fade-in duration-200">
       {/* Top Wishlist Overview Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {/* Total Desejos */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-3.5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
+        <div
+          onClick={() => {
+            playUiSound("click");
+            setFilterRadar("ALL");
+            setFilterPriority("ALL");
+          }}
+          className="relative overflow-hidden bg-zinc-900/65 hover:bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all"
+        >
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-pink-500 to-purple-500 opacity-75" />
+          <div className="flex items-center justify-between text-zinc-400 text-[11px] font-semibold">
             <span>Total no Radar</span>
-            <Bookmark className="w-4 h-4 text-pink-400" />
+            <Bookmark className="w-3.5 h-3.5 text-pink-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-white">{stats.total}</div>
+          <div className="mt-2 text-2xl font-mono font-extrabold text-white">{stats.total}</div>
         </div>
 
         {/* Alta Prioridade */}
         <div
-          onClick={() => setFilterPriority(filterPriority === "HIGH" ? "ALL" : "HIGH")}
-          className={`border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          onClick={() => {
+            playUiSound("click");
+            setFilterPriority(filterPriority === "HIGH" ? "ALL" : "HIGH");
+          }}
+          className={`relative overflow-hidden border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
             filterPriority === "HIGH"
-              ? "bg-rose-950/40 border-rose-500 text-rose-200 shadow-md shadow-rose-950/30"
-              : "bg-zinc-900/60 border-zinc-800 hover:border-rose-500/50"
+              ? "bg-rose-950/35 border-rose-500/60 shadow-lg shadow-rose-950/30"
+              : "bg-zinc-900/65 hover:bg-zinc-900/90 border-zinc-800/80 hover:border-rose-500/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-rose-400">
-            <span>🔥 Alta Prioridade</span>
-            <Flame className="w-4 h-4" />
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-rose-500 to-orange-500 opacity-85" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-rose-300">
+            <span>Alta Prioridade</span>
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-rose-300">{stats.high}</div>
+          <div className="mt-2 text-2xl font-mono font-extrabold text-white">{stats.high}</div>
         </div>
 
         {/* Aguardar Crack */}
         <div
-          onClick={() =>
-            setFilterRadar(filterRadar === "WAITING_CRACK" ? "ALL" : "WAITING_CRACK")
-          }
-          className={`border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          onClick={() => {
+            playUiSound("click");
+            setFilterRadar(filterRadar === "WAITING_CRACK" ? "ALL" : "WAITING_CRACK");
+          }}
+          className={`relative overflow-hidden border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
             filterRadar === "WAITING_CRACK"
-              ? "bg-amber-950/40 border-amber-500 text-amber-200 shadow-md shadow-amber-950/30"
-              : "bg-zinc-900/60 border-zinc-800 hover:border-amber-500/50"
+              ? "bg-amber-950/35 border-amber-500/60 shadow-lg shadow-amber-950/30"
+              : "bg-zinc-900/65 hover:bg-zinc-900/90 border-zinc-800/80 hover:border-amber-500/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-amber-400">
-            <span>🏴‍☠️ Esperar Crack</span>
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-amber-500 to-yellow-400 opacity-85" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-amber-300">
+            <span>Esperar Repack</span>
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-amber-300">{stats.waitingCrack}</div>
+          <div className="mt-2 text-2xl font-mono font-extrabold text-white">{stats.waitingCrack}</div>
         </div>
 
         {/* Aguardar Promoção */}
         <div
-          onClick={() =>
-            setFilterRadar(filterRadar === "WAITING_SALE" ? "ALL" : "WAITING_SALE")
-          }
-          className={`border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          onClick={() => {
+            playUiSound("click");
+            setFilterRadar(filterRadar === "WAITING_SALE" ? "ALL" : "WAITING_SALE");
+          }}
+          className={`relative overflow-hidden border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
             filterRadar === "WAITING_SALE"
-              ? "bg-emerald-950/40 border-emerald-500 text-emerald-200 shadow-md shadow-emerald-950/30"
-              : "bg-zinc-900/60 border-zinc-800 hover:border-emerald-500/50"
+              ? "bg-emerald-950/35 border-emerald-500/60 shadow-lg shadow-emerald-950/30"
+              : "bg-zinc-900/65 hover:bg-zinc-900/90 border-zinc-800/80 hover:border-emerald-500/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-emerald-400">
-            <span>🏷️ Esperar Promo</span>
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-emerald-500 to-teal-400 opacity-85" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-300">
+            <span>Esperar Promo</span>
+            <Tag className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-emerald-300">{stats.waitingSale}</div>
+          <div className="mt-2 text-2xl font-mono font-extrabold text-white">{stats.waitingSale}</div>
         </div>
 
         {/* Aguardar Lançamento */}
         <div
-          onClick={() =>
-            setFilterRadar(filterRadar === "WAITING_RELEASE" ? "ALL" : "WAITING_RELEASE")
-          }
-          className={`border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          onClick={() => {
+            playUiSound("click");
+            setFilterRadar(filterRadar === "WAITING_RELEASE" ? "ALL" : "WAITING_RELEASE");
+          }}
+          className={`relative overflow-hidden border rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
             filterRadar === "WAITING_RELEASE"
-              ? "bg-indigo-950/40 border-indigo-500 text-indigo-200 shadow-md shadow-indigo-950/30"
-              : "bg-zinc-900/60 border-zinc-800 hover:border-indigo-500/50"
+              ? "bg-indigo-950/35 border-indigo-500/60 shadow-lg shadow-indigo-950/30"
+              : "bg-zinc-900/65 hover:bg-zinc-900/90 border-zinc-800/80 hover:border-indigo-500/40"
           }`}
         >
-          <div className="flex items-center justify-between text-xs text-indigo-400">
-            <span>📅 Lançamentos</span>
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-indigo-500 to-sky-400 opacity-85" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-300">
+            <span>Lançamentos</span>
+            <Calendar className="w-3.5 h-3.5 text-indigo-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-indigo-300">{stats.waitingRelease}</div>
+          <div className="mt-2 text-2xl font-mono font-extrabold text-white">{stats.waitingRelease}</div>
         </div>
 
         {/* Orçamento Alvo Total */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-3.5 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
+        <div className="relative overflow-hidden bg-zinc-900/65 border border-zinc-800/80 rounded-2xl p-3.5 flex flex-col justify-between">
+          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-teal-400 to-emerald-500 opacity-75" />
+          <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
             <span>Orçamento Meta</span>
-            <TrendingDown className="w-4 h-4 text-emerald-400" />
+            <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-emerald-300">
+          <div className="mt-2 text-2xl font-mono font-extrabold text-emerald-300">
             {stats.totalTargetBudget.toFixed(2)}€
           </div>
         </div>
       </div>
 
       {/* Control & Filter Bar */}
-      <div className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Search */}
-        <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           <input
             type="text"
             placeholder="Pesquisar desejos por título, género..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-pink-500"
+            className="w-full h-9 pl-10 pr-4 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-pink-500"
           />
         </div>
 
@@ -356,34 +392,51 @@ export function WishlistView({
           <select
             value={filterRadar}
             onChange={(e) => setFilterRadar(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-pink-500 cursor-pointer"
+            className="h-9 bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 focus:outline-none focus:border-pink-500 cursor-pointer"
           >
             <option value="ALL">Todos os Estados do Radar</option>
-            <option value="WAITING_CRACK">🏴‍☠️ Aguardar Crack / Repack</option>
-            <option value="WAITING_SALE">🏷️ Aguardar Promoção</option>
-            <option value="WAITING_RELEASE">📅 Aguardar Lançamento</option>
+            <option value="WAITING_CRACK">Aguardar Repack / Crack</option>
+            <option value="WAITING_SALE">Aguardar Promoção</option>
+            <option value="WAITING_RELEASE">Aguardar Lançamento</option>
           </select>
 
           {/* Priority Filter */}
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-pink-500 cursor-pointer"
+            className="h-9 bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 focus:outline-none focus:border-pink-500 cursor-pointer"
           >
             <option value="ALL">Todas as Prioridades</option>
-            <option value="HIGH">🔥 Alta Prioridade</option>
-            <option value="MEDIUM">⭐ Média Prioridade</option>
-            <option value="LOW">⏳ Baixa Prioridade</option>
+            <option value="HIGH">Alta Prioridade</option>
+            <option value="MEDIUM">Média Prioridade</option>
+            <option value="LOW">Baixa Prioridade</option>
           </select>
+
+          {/* 1-Click Check All Steam Prices */}
+          {filteredList.length > 0 && (
+            <button
+              type="button"
+              onClick={handleCheckAllSteamPrices}
+              disabled={checkingAllPrices}
+              className="h-9 px-3 bg-zinc-950 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 text-xs font-semibold rounded-xl flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer disabled:opacity-50"
+              title="Consultar preços atuais na Steam para todos os jogos da lista"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${checkingAllPrices ? "animate-spin" : ""}`} />
+              <span>{checkingAllPrices ? "A Consultar Steam..." : "Ver Todos os Preços"}</span>
+            </button>
+          )}
 
           {/* Quick Add Button */}
           <button
             type="button"
-            onClick={onOpenAddModal}
-            className="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-pink-600/30 transition-all cursor-pointer shrink-0"
+            onClick={() => {
+              playUiSound("open");
+              onOpenAddModal();
+            }}
+            className="h-9 px-4 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 whitespace-nowrap shadow-lg shadow-pink-600/30 transition-all cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Adicionar ao Radar</span>
+            <span>Adicionar ao Radar</span>
           </button>
         </div>
       </div>
@@ -409,6 +462,7 @@ export function WishlistView({
               <button
                 type="button"
                 onClick={() => {
+                  playUiSound("click");
                   setSearch("");
                   setFilterRadar("ALL");
                   setFilterPriority("ALL");
@@ -420,7 +474,10 @@ export function WishlistView({
             ) : (
               <button
                 type="button"
-                onClick={onOpenAddModal}
+                onClick={() => {
+                  playUiSound("open");
+                  onOpenAddModal();
+                }}
                 className="px-5 py-2.5 bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-pink-600/30 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -452,6 +509,7 @@ export function WishlistView({
                   onClick={() => onSelectGameDetail && onSelectGameDetail(game)}
                   className="relative h-44 w-full bg-zinc-950 overflow-hidden cursor-pointer"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={game.bannerUrl || game.coverUrl || "/placeholder-game.png"}
                     alt={game.title}
@@ -472,8 +530,9 @@ export function WishlistView({
                   {/* Target Price Ribbon if defined */}
                   {hasTargetPrice && (
                     <div className="absolute bottom-3 left-3 bg-zinc-950/90 border border-emerald-500/40 text-emerald-300 font-bold px-2.5 py-1 rounded-xl text-xs backdrop-blur-md shadow-md flex items-center gap-1.5">
-                      <span>🎯 Preço Meta:</span>
-                      <span className="text-white">≤ {game.targetPrice?.toFixed(2)}€</span>
+                      <Target className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Preço Meta:</span>
+                      <span className="text-white font-mono">≤ {game.targetPrice?.toFixed(2)}€</span>
                     </div>
                   )}
                 </div>
@@ -502,7 +561,7 @@ export function WishlistView({
 
                     {game.installNotes && (
                       <p className="mt-2 text-xs text-zinc-400 italic bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80 line-clamp-2">
-                        "{game.installNotes}"
+                        &ldquo;{game.installNotes}&rdquo;
                       </p>
                     )}
                   </div>
@@ -517,17 +576,18 @@ export function WishlistView({
                         <span className="text-zinc-400 text-xs animate-pulse">A consultar Steam...</span>
                       ) : priceInfo?.formatted ? (
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">
+                          <span className="font-bold font-mono text-white text-sm">
                             {priceInfo.formatted}
                           </span>
                           {priceInfo.discountPercent ? (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px]">
                               -{priceInfo.discountPercent}%
                             </span>
                           ) : null}
                           {targetMet && (
-                            <span className="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-bold text-[10px] animate-bounce">
-                              🎉 Alvo Atingido!
+                            <span className="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-bold text-[10px] flex items-center gap-1 animate-bounce">
+                              <Sparkles className="w-3 h-3" />
+                              <span>Alvo Atingido!</span>
                             </span>
                           )}
                         </div>
@@ -549,6 +609,17 @@ export function WishlistView({
                   {/* Actions Bar */}
                   <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
+                      {game.externalLink && (
+                        <a
+                          href={game.externalLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-zinc-400 hover:text-sky-400 hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
+                          title="Abrir Link Externo"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={() => onEditGame(game)}

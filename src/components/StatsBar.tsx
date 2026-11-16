@@ -3,6 +3,7 @@
 import React from "react";
 import { GameItem } from "@/types/game";
 import { Gamepad2, Play, Trophy, Clock, PackageCheck, ShieldAlert, Archive } from "lucide-react";
+import { playUiSound } from "@/lib/ui-sfx";
 
 interface StatsBarProps {
   games: GameItem[];
@@ -31,137 +32,147 @@ export function StatsBar({
   const repacks = games.filter((g) => g.originType === "REPACK").length;
   const archived = games.filter((g) => g.isArchived).length;
 
+  const cards = [
+    {
+      key: "TOTAL",
+      label: "Total",
+      sub: "Catalogados",
+      value: total,
+      icon: Gamepad2,
+      active: activeStatusFilter === "ALL" && activeOriginFilter === "ALL" && activeArchiveFilter === "ALL",
+      accent: "text-zinc-300",
+      activeRing: "bg-zinc-800/80 border-zinc-500/70 shadow-lg shadow-black/40",
+      topBar: "from-zinc-400 to-zinc-600",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByStatus?.("ALL");
+        onFilterByOrigin?.("ALL");
+        onFilterByArchive?.("ALL");
+      },
+    },
+    {
+      key: "AVAILABLE",
+      label: "Disponível",
+      sub: "Prontos a jogar",
+      value: available,
+      icon: PackageCheck,
+      active: activeStatusFilter === "AVAILABLE",
+      accent: "text-cyan-400",
+      activeRing: "bg-cyan-950/35 border-cyan-500/60 shadow-lg shadow-cyan-950/30",
+      topBar: "from-cyan-400 to-sky-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByStatus?.(activeStatusFilter === "AVAILABLE" ? "ALL" : "AVAILABLE");
+      },
+    },
+    {
+      key: "PLAYING",
+      label: "A Jogar",
+      sub: "Em progresso",
+      value: playing,
+      icon: Play,
+      active: activeStatusFilter === "PLAYING",
+      accent: "text-emerald-400",
+      activeRing: "bg-emerald-950/35 border-emerald-500/60 shadow-lg shadow-emerald-950/30",
+      topBar: "from-emerald-400 to-teal-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByStatus?.(activeStatusFilter === "PLAYING" ? "ALL" : "PLAYING");
+      },
+    },
+    {
+      key: "BACKLOG",
+      label: "Backlog",
+      sub: "Por jogar",
+      value: backlog,
+      icon: Clock,
+      active: activeStatusFilter === "BACKLOG",
+      accent: "text-indigo-400",
+      activeRing: "bg-indigo-950/35 border-indigo-500/60 shadow-lg shadow-indigo-950/30",
+      topBar: "from-indigo-400 to-purple-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByStatus?.(activeStatusFilter === "BACKLOG" ? "ALL" : "BACKLOG");
+      },
+    },
+    {
+      key: "COMPLETED",
+      label: "Concluídos",
+      sub: "Terminados / 100%",
+      value: completed,
+      icon: Trophy,
+      active: activeStatusFilter === "COMPLETED",
+      accent: "text-teal-400",
+      activeRing: "bg-teal-950/35 border-teal-500/60 shadow-lg shadow-teal-950/30",
+      topBar: "from-teal-400 to-emerald-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByStatus?.(activeStatusFilter === "COMPLETED" ? "ALL" : "COMPLETED");
+      },
+    },
+    {
+      key: "REPACK",
+      label: "Repacks",
+      sub: "FitGirl / DODI",
+      value: repacks,
+      icon: ShieldAlert,
+      active: activeOriginFilter === "REPACK",
+      accent: "text-purple-400",
+      activeRing: "bg-purple-950/35 border-purple-500/60 shadow-lg shadow-purple-950/30",
+      topBar: "from-purple-400 to-pink-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByOrigin?.(activeOriginFilter === "REPACK" ? "ALL" : "REPACK");
+      },
+    },
+    {
+      key: "ARCHIVED",
+      label: "Arquivados",
+      sub: "Backup externo",
+      value: archived,
+      icon: Archive,
+      active: activeArchiveFilter === "ARCHIVED",
+      accent: "text-amber-400",
+      activeRing: "bg-amber-950/35 border-amber-500/60 shadow-lg shadow-amber-950/30",
+      topBar: "from-amber-400 to-orange-500",
+      onClick: () => {
+        playUiSound("click");
+        onFilterByArchive?.(activeArchiveFilter === "ARCHIVED" ? "ALL" : "ARCHIVED");
+      },
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-      {/* Total Card */}
-      <button
-        type="button"
-        onClick={() => {
-          onFilterByStatus?.("ALL");
-          onFilterByOrigin?.("ALL");
-          onFilterByArchive?.("ALL");
-        }}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeStatusFilter === "ALL" && activeOriginFilter === "ALL" && activeArchiveFilter === "ALL"
-            ? "bg-zinc-800 border-zinc-500 shadow-md"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50"
-        }`}
-      >
-        <div className="flex items-center justify-between text-zinc-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Total</span>
-          <Gamepad2 className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
-        </div>
-        <div className="text-2xl font-bold text-white">{total}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Catalogados</p>
-      </button>
-
-      {/* Available Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByStatus?.(activeStatusFilter === "AVAILABLE" ? "ALL" : "AVAILABLE")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeStatusFilter === "AVAILABLE"
-            ? "bg-cyan-950/40 border-cyan-500 shadow-md shadow-cyan-950/50"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-cyan-500/40 hover:bg-cyan-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-cyan-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Disponível</span>
-          <PackageCheck className="w-4 h-4 text-cyan-400" />
-        </div>
-        <div className="text-2xl font-bold text-white">{available}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Prontos a jogar</p>
-      </button>
-
-      {/* Playing Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByStatus?.(activeStatusFilter === "PLAYING" ? "ALL" : "PLAYING")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeStatusFilter === "PLAYING"
-            ? "bg-emerald-950/40 border-emerald-500 shadow-md shadow-emerald-950/50"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-emerald-500/40 hover:bg-emerald-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-emerald-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">A Jogar</span>
-          <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-        </div>
-        <div className="text-2xl font-bold text-white">{playing}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Em progresso</p>
-      </button>
-
-      {/* Backlog Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByStatus?.(activeStatusFilter === "BACKLOG" ? "ALL" : "BACKLOG")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeStatusFilter === "BACKLOG"
-            ? "bg-indigo-950/40 border-indigo-500 shadow-md shadow-indigo-950/50"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-indigo-500/40 hover:bg-indigo-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-indigo-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Backlog</span>
-          <Clock className="w-4 h-4 text-indigo-400" />
-        </div>
-        <div className="text-2xl font-bold text-white">{backlog}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Por jogar</p>
-      </button>
-
-      {/* Completed Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByStatus?.(activeStatusFilter === "COMPLETED" ? "ALL" : "COMPLETED")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeStatusFilter === "COMPLETED"
-            ? "bg-teal-950/40 border-teal-500 shadow-md shadow-teal-950/50"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-teal-500/40 hover:bg-teal-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-teal-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Concluídos</span>
-          <Trophy className="w-4 h-4 text-teal-400" />
-        </div>
-        <div className="text-2xl font-bold text-white">{completed}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Terminados ou 100%</p>
-      </button>
-
-      {/* Repacks Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByOrigin?.(activeOriginFilter === "REPACK" ? "ALL" : "REPACK")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeOriginFilter === "REPACK"
-            ? "bg-purple-950/40 border-purple-500 shadow-md shadow-purple-950/50"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-purple-500/40 hover:bg-purple-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-purple-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Repacks</span>
-          <ShieldAlert className="w-4 h-4 text-purple-400" />
-        </div>
-        <div className="text-2xl font-bold text-white">{repacks}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">FitGirl / DODI / etc.</p>
-      </button>
-
-      {/* Archived Card */}
-      <button
-        type="button"
-        onClick={() => onFilterByArchive?.(activeArchiveFilter === "ARCHIVED" ? "ALL" : "ARCHIVED")}
-        className={`p-3.5 rounded-xl border text-left transition-all group cursor-pointer ${
-          activeArchiveFilter === "ARCHIVED"
-            ? "bg-amber-950/50 border-amber-500 shadow-md shadow-amber-950/60"
-            : "bg-zinc-900/60 border-zinc-800 hover:border-amber-500/40 hover:bg-amber-950/20"
-        }`}
-      >
-        <div className="flex items-center justify-between text-amber-400 mb-1">
-          <span className="text-xs uppercase tracking-wider font-medium">Arquivados</span>
-          <Archive className="w-4 h-4 text-amber-400" />
-        </div>
-        <div className="text-2xl font-bold text-amber-300">{archived}</div>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Em backup externo</p>
-      </button>
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-5">
+      {cards.map((c) => {
+        const Icon = c.icon;
+        return (
+          <button
+            key={c.key}
+            type="button"
+            onClick={c.onClick}
+            className={`relative overflow-hidden p-3 rounded-2xl border text-left transition-all duration-200 group cursor-pointer ${
+              c.active
+                ? c.activeRing
+                : "bg-zinc-900/55 border-white/[0.07] hover:border-white/[0.16] hover:bg-zinc-900/85"
+            }`}
+          >
+            <div
+              className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${c.topBar} transition-opacity ${
+                c.active ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+              }`}
+            />
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-[10px] uppercase tracking-wider font-bold ${c.accent}`}>
+                {c.label}
+              </span>
+              <Icon className={`w-3.5 h-3.5 ${c.accent} opacity-80 group-hover:opacity-100 transition-opacity`} />
+            </div>
+            <div className="text-xl font-black font-mono text-white tracking-tight">{c.value}</div>
+            <p className="text-[10px] text-zinc-500 truncate mt-0.5">{c.sub}</p>
+          </button>
+        );
+      })}
     </div>
   );
 }
