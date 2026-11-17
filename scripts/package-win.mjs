@@ -109,7 +109,9 @@ fs.writeFileSync(
 log("Verificação de dados pessoais e caminhos locais");
 const forbidden = [
   ROOT, ROOT.split(BS).join("/"), ROOT.split(BS).join(BS + BS),
-  "utilizador", "email-privado@exemplo.invalid", "perfil-exemplo", "nome-privado", "projeto", "VaultCraft-Review",
+  // termos pessoais (nome de utilizador, e-mail, perfis) vêm de VAULTCRAFT_PRIVACY_TERMS, nunca do código
+  ...(process.env.VAULTCRAFT_PRIVACY_TERMS || "").split(",").map((t) => t.trim()).filter(Boolean),
+  "dev.db", "VaultCraft-Review",
 ];
 const textExt = new Set([".js", ".mjs", ".cjs", ".json", ".html", ".txt", ".vbs", ".bat", ".css", ".map", ".md", ".svg", ".xml", ".ps1"]);
 const hits = [];
