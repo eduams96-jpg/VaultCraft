@@ -3,37 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { checkIsDuplicateGame, normalizeTitleForComparison, type ExistingGameRef } from "@/lib/gameNormalization";
 import { fetchHowLongToBeat } from "@/lib/hltb";
 
-// Pre-curated list of verified perfil-exemplo/Colecionador public profile badges & showcase games with Steam AppIDs
-const CONFIRMED_WOLF_APPS: { appId: number; fallbackTitle: string }[] = [
-  { appId: 292030, fallbackTitle: "The Witcher 3: Wild Hunt" },
-  { appId: 582160, fallbackTitle: "Assassin's Creed Origins" },
-  { appId: 607050, fallbackTitle: "Wargroove" },
-  { appId: 22000, fallbackTitle: "World of Goo" },
-  { appId: 421020, fallbackTitle: "DiRT 4" },
-  { appId: 1263850, fallbackTitle: "Football Manager 2021" },
-  { appId: 1100600, fallbackTitle: "Football Manager 2020" },
-  { appId: 70300, fallbackTitle: "VVVVVV" },
-  { appId: 1150640, fallbackTitle: "Yu-Gi-Oh! Legacy of the Duelist : Link Evolution" },
-  { appId: 443810, fallbackTitle: "This Is the Police" },
-  { appId: 232790, fallbackTitle: "Broken Age" },
-  { appId: 621060, fallbackTitle: "PC Building Simulator" },
-  { appId: 445980, fallbackTitle: "Wizard of Legend" },
-  { appId: 409710, fallbackTitle: "BioShock Remastered" },
-  { appId: 236850, fallbackTitle: "Europa Universalis IV" },
-  { appId: 365450, fallbackTitle: "Hacknet" },
-  { appId: 1042550, fallbackTitle: "Digimon Story Cyber Sleuth: Complete Edition" },
-  { appId: 57690, fallbackTitle: "Tropico 4" },
-  { appId: 48700, fallbackTitle: "Mount & Blade: Warband" },
-  { appId: 730, fallbackTitle: "Counter-Strike 2" },
-  { appId: 495140, fallbackTitle: "NARUTO: Ultimate Ninja STORM" },
-  { appId: 543870, fallbackTitle: "NARUTO SHIPPUDEN: Ultimate Ninja STORM 2" },
-  { appId: 234670, fallbackTitle: "NARUTO SHIPPUDEN: Ultimate Ninja STORM 3 Full Burst HD" },
-  { appId: 349040, fallbackTitle: "NARUTO SHIPPUDEN: Ultimate Ninja STORM 4" },
-];
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const identifier = searchParams.get("id")?.trim() || "perfil-exemplo";
+  const identifier = searchParams.get("id")?.trim() || "";
+  if (!identifier) {
+    return NextResponse.json({ error: "Indica o ID público da Steam (nome do perfil ou número de 17 dígitos)." }, { status: 400 });
+  }
 
   try {
     // 1. Try public XML endpoint
@@ -91,34 +67,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 2. Fallback: Privacy setting restricted. Extract from badges and public profile
-    // If identifier matches perfil-exemplo, use our verified app IDs
-    const badgeApps = CONFIRMED_WOLF_APPS;
-
-    // Fetch official store names & live prices for each app
-    const resolvedGames = [];
-    for (const item of badgeApps) {
-      const coverUrl = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${item.appId}/library_600x900.jpg`;
-      const bannerUrl = `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${item.appId}/header.jpg`;
-      
-      resolvedGames.push({
-        appId: item.appId,
-        title: item.fallbackTitle,
-        coverUrl,
-        bannerUrl,
-        hoursPlayed: 0,
-        platform: "PC",
-        originType: "STEAM",
-      });
-    }
-
+    // 2. Perfil privado: não há fallback. A app não inventa jogos para perfis que não lê.
     return NextResponse.json({
-      success: true,
-      source: "steam_badges_showcase",
+      success: false,
       isRestricted: true,
-      total: resolvedGames.length,
-      games: resolvedGames,
-      message: `A privacidade da biblioteca Steam de "${identifier}" está definida como Apenas Amigos/Privado. Foram extraídos automaticamente ${resolvedGames.length} jogos verificados através dos crachás públicos e vitrines do perfil!`,
+      total: 0,
+      games: [],
+      message: `A biblioteca Steam de "${identifier}" está privada. Define os detalhes dos jogos como Públicos na Steam e tenta de novo.`,
     });
   } catch (error) {
     console.error("Steam profile fetch error:", error);
@@ -132,7 +87,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const gamesToImport = Array.isArray(body.games) ? body.games : CONFIRMED_WOLF_APPS;
+    const gamesToImport = Array.isArray(body.games) ? body.games : [];
+    if (gamesToImport.length === 0) {
+      return NextResponse.json({ error: "Nenhum jogo recebido para importar." }, { status: 400 });
+    }
     const defaultStatus = body.status || "AVAILABLE";
 
     const allDbGames: ExistingGameRef[] = await prisma.game.findMany({

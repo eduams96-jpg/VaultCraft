@@ -29,7 +29,7 @@ export function GamerCardModal({
   onClose,
   games,
 }: GamerCardModalProps) {
-  const [userName, setUserName] = useState("Colecionador / perfil-exemplo");
+  const [userName, setUserName] = useState("Colecionador");
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;

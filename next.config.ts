@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Gera .next/standalone: servidor autónomo que a distribuição Windows usa (sem npm em runtime)
+  output: "standalone",
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

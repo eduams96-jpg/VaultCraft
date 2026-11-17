@@ -972,13 +972,24 @@ export default function HomePage() {
 
   // 1-Click Sync Steam Playtime Hours
   const handleSyncSteamHours = async () => {
+    let identifier = "";
+    try {
+      identifier = localStorage.getItem("gt_steamId") || "";
+    } catch {}
+    if (!identifier) {
+      identifier = (window.prompt("ID público da Steam (nome do perfil ou número de 17 dígitos):") || "").trim();
+      if (!identifier) return;
+      try {
+        localStorage.setItem("gt_steamId", identifier);
+      } catch {}
+    }
     setIsSyncingSteam(true);
     showToast("🔄 A contactar a Steam para sincronizar horas de jogo...");
     try {
       const res = await fetch("/api/steam/sync-hours", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: "perfil-exemplo" }),
+        body: JSON.stringify({ identifier }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao sincronizar horas da Steam.");

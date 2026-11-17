@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { shellOpen } from "@/lib/shell-open";
+import { BACKUPS_DIR } from "@/lib/paths";
 import fs from "fs";
 import path from "path";
 
@@ -34,7 +35,7 @@ function getDirectoryStats(dirPath: string): { bytes: number; filesCount: number
 }
 
 function listGameSaveBackups(safeTitle: string): SaveBackupSnapshot[] {
-  const backupRootDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "backups", "saves");
+  const backupRootDir = path.join(BACKUPS_DIR, "saves");
   if (!fs.existsSync(/*turbopackIgnore: true*/ backupRootDir)) {
     return [];
   }
@@ -121,7 +122,7 @@ export async function POST(
     }
 
     const safeTitle = game.title.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const backupRootDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "backups", "saves");
+    const backupRootDir = path.join(BACKUPS_DIR, "saves");
 
     // ACTION: OPEN BACKUP FOLDER IN EXPLORER
     if (action === "openBackup") {

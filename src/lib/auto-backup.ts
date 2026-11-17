@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { BACKUPS_DIR, sqliteFilePath } from "@/lib/paths";
 
 const MAX_SNAPSHOTS = 10;
 
@@ -14,7 +15,7 @@ export interface AutoSnapshotMeta {
 }
 
 function getBackupsDir(): string {
-  return path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
+  return BACKUPS_DIR;
 }
 
 function formatTimestamp(date: Date): string {
@@ -67,8 +68,8 @@ export async function createAutoSnapshot(reason: string): Promise<AutoSnapshotMe
     fs.writeFileSync(filePath, jsonString, "utf-8");
 
     // Copiar ficheiro físico SQLite mais recente
-    const sqlitePath = path.join(/*turbopackIgnore: true*/ process.cwd(), "prisma", "dev.db");
-    if (fs.existsSync(sqlitePath)) {
+    const sqlitePath = sqliteFilePath();
+    if (sqlitePath && fs.existsSync(sqlitePath)) {
       const latestDbCopy = path.join(/*turbopackIgnore: true*/ backupsDir, "dev-latest.db.backup");
       fs.copyFileSync(sqlitePath, latestDbCopy);
     }

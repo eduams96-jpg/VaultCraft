@@ -5,7 +5,10 @@ import { normalizeTitleForComparison } from "@/lib/gameNormalization";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const identifier = body.identifier?.trim() || "perfil-exemplo";
+    const identifier = body.identifier?.trim() || "";
+    if (!identifier) {
+      return NextResponse.json({ success: false, error: "Indica o ID público da Steam." }, { status: 400 });
+    }
 
     const xmlUrl = identifier.match(/^\d{17}$/)
       ? `https://steamcommunity.com/profiles/${identifier}/games/?tab=all&xml=1`

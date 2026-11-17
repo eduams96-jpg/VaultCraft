@@ -1,0 +1,39 @@
+name: Release Windows
+
+# Corre quando se cria uma tag de versão (ex.: v1.0.0). Gera o ZIP e publica a release.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências (a partir do package-lock)
+        run: npm ci
+
+      - name: Lint, tipos, build e pacote Windows
+        run: npm run package:win
+
+      - name: Publicar release com o ZIP e os SHA-256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          # Nunca substitui uma release existente: os SHA-256 publicados têm de corresponder ao ZIP original
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "A release ${{ github.ref_name }} já existe; nada a publicar."
+            exit 0
+          fi
+          gh release create "${{ github.ref_name }}" release/VaultCraft-*-win-x64.zip release/SHA256SUMS.txt --title "VaultCraft Studio ${{ github.ref_name }}" --notes-file RELEASE_NOTES.md

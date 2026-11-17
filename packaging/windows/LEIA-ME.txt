@@ -1,0 +1,35 @@
+VaultCraft Studio - pacote para Windows (x64)
+=============================================
+
+COMO ARRANCAR
+  1. Extrai o ZIP inteiro para uma pasta (ex.: Documentos\VaultCraft).
+  2. Duplo clique em VaultCraft.vbs.
+  3. Opcional: duplo clique em Criar-Atalhos.vbs (atalhos no Ambiente de Trabalho
+     e no Menu Iniciar, só para a tua conta; pede confirmação).
+
+PARAR
+  Parar-VaultCraft.bat (termina o servidor que escuta na porta 3000).
+
+REQUISITOS
+  Windows 10 ou Windows 11, x64. Sem administrador e sem instalar Node.js:
+  o runtime (runtime\node.exe) vem incluído. Microsoft Edge abre a app numa janela
+  própria; sem Edge abre no browser predefinido.
+
+ONDE FICAM OS DADOS
+  %LOCALAPPDATA%\VaultCraft
+    vaultcraft.db   base de dados (criada na primeira execução a partir do modelo vazio)
+    backups\        backups JSON e snapshots automáticos
+    servidor.log    registo do servidor (útil se a app não arrancar)
+  Atualizar ou apagar a pasta do programa NÃO apaga estes dados.
+
+PRIVACIDADE
+  A app só escuta em 127.0.0.1. Não há telemetria. Pesquisas online (Steam,
+  HowLongToBeat) acontecem apenas quando as usas.
+
+VERIFICAR O PACOTE
+  Get-FileHash .\VaultCraft-<versão>-win-x64.zip -Algorithm SHA256
+  (o valor tem de coincidir com SHA256SUMS.txt da release)
+
+LICENÇAS
+  runtime\LICENSE-node.txt (Node.js, MIT). Licença do VaultCraft: ver LICENSE.txt
+  se existir; caso contrário, todos os direitos reservados.

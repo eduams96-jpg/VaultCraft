@@ -128,7 +128,7 @@ export function BatchImportModal({
 
   // Input Mode: Manual Text Paste vs Steam Profile Extractor
   const [inputMode, setInputMode] = useState<"text" | "steam">("text");
-  const [steamIdentifier, setSteamIdentifier] = useState("perfil-exemplo");
+  const [steamIdentifier, setSteamIdentifier] = useState("");
   const [isExtractingSteam, setIsExtractingSteam] = useState(false);
 
   // Preview state
@@ -538,16 +538,9 @@ Pokemon Emerald (GBA)`;
                         type="text"
                         value={steamIdentifier}
                         onChange={(e) => setSteamIdentifier(e.target.value)}
-                        placeholder="Ex: perfil-exemplo ou 76561198392108253"
+                        placeholder="Ex: nome do perfil Steam ou 76561198..."
                         className="flex-1 bg-zinc-950 border border-zinc-700 focus:border-sky-500 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none font-mono"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setSteamIdentifier("perfil-exemplo")}
-                        className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-sky-300 text-xs font-semibold rounded-xl border border-zinc-700 transition-colors cursor-pointer shrink-0"
-                      >
-                        Carregar perfil-exemplo (Colecionador)
-                      </button>
                     </div>
                   </div>
 
