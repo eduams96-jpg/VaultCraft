@@ -19,27 +19,27 @@ Organizador **local** da tua coleção e backlog de jogos para Windows: bibliote
 - **Não é preciso** instalar Node.js, base de dados ou outro software: o pacote traz o runtime.
 - Não é preciso permissões de administrador.
 - Internet só para as pesquisas de metadados (Steam, HowLongToBeat) e para o radar de patches. Sem internet a app funciona, sem essas pesquisas.
-- Recomendado: Microsoft Edge (já vem com o Windows) para abrir a app numa janela própria. Sem Edge, abre no browser predefinido.
+- Microsoft WebView2 Runtime para a janela própria. Se faltar, o instalador obtém-no da Microsoft; nesse caso é necessária Internet.
 
 ## Instalação (utilizador)
 
-1. Descarrega `VaultCraft-<versão>-win-x64.zip` da página de [Releases](https://github.com/eduams96-jpg/VaultCraft/releases).
+1. Descarrega `VaultCraft-Setup-1.0.2.exe` da página de [Releases](https://github.com/eduams96-jpg/VaultCraft/releases).
 2. Verifica a integridade (opcional, recomendado) no PowerShell:
 
    ```powershell
-   Get-FileHash .\VaultCraft-1.0.0-win-x64.zip -Algorithm SHA256
+   Get-FileHash .\VaultCraft-Setup-1.0.2.exe -Algorithm SHA256
    ```
 
    O valor tem de coincidir com o de `SHA256SUMS.txt` da mesma release.
-3. Extrai o ZIP para uma pasta à tua escolha (por exemplo `Documentos\VaultCraft`). Não é preciso ser administrador.
-4. Faz duplo clique em **`VaultCraft.vbs`** para abrir a app.
-5. Opcional: faz duplo clique em **`Criar-Atalhos.vbs`** para criar atalhos no Ambiente de Trabalho e no Menu Iniciar. O script pede confirmação antes de criar seja o que for.
+3. Executa o instalador. Não é preciso ser administrador.
+4. Abre **VaultCraft Studio** pelo menu Iniciar ou pelo atalho do Ambiente de Trabalho. A aplicação abre numa janela própria, sem barra de endereços.
+5. Ao fechar a janela, o serviço local é terminado. Para atualizar, instala a nova versão na mesma pasta.
 
 Na primeira execução a app cria a base de dados vazia em `%LOCALAPPDATA%\VaultCraft`. Essa pasta **não** está dentro da pasta do programa, por isso atualizar ou apagar a pasta do programa não apaga os teus dados.
 
 ### Desinstalar
 
-Apaga a pasta do programa, os atalhos que criaste e, se quiseres apagar também os dados, a pasta `%LOCALAPPDATA%\VaultCraft`.
+Usa a opção de desinstalação do Windows ou do menu Iniciar. Se quiseres apagar também os dados, apaga a pasta `%LOCALAPPDATA%\VaultCraft`.
 
 ## Utilização
 
@@ -47,7 +47,7 @@ Apaga a pasta do programa, os atalhos que criaste e, se quiseres apagar também 
 - `/`: foca a pesquisa da coleção.
 - `Alt+N`: novo jogo.
 - `Esc`: fecha o modal aberto.
-- Para parar o servidor, usa **`Parar-VaultCraft.bat`**.
+- Para parar o servidor, fecha a janela. Para diagnóstico, executa `VaultCraft.exe --stop`.
 
 ## Privacidade e segurança
 
@@ -75,13 +75,15 @@ Verificações antes de publicar:
 npm run check            # lint + tsc + build
 ```
 
-Gerar o pacote Windows (cria `release/`):
+Gerar o pacote base Windows (cria `release/`; inclui o servidor e Node.js):
 
 ```bash
 npm run package:win
 ```
 
 O script de empacotamento **cancela a publicação** se encontrar dados pessoais, caminhos do programador ou bases de dados no pacote.
+
+Para gerar o instalador com a janela desktop, segue [BUILD_WINDOWS.md](BUILD_WINDOWS.md). O arquivo completo da release inclui o pacote já preparado, as bibliotecas WebView2 e o compilador Inno Setup, para reconstruir o instalador sem voltar a obter esses componentes.
 
 ### Estrutura
 

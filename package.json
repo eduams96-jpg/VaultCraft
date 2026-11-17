@@ -1,6 +1,6 @@
 {
   "name": "vaultcraft",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev -H 127.0.0.1",
@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:template": "node scripts/build-template-db.mjs",
     "package:win": "node scripts/package-win.mjs",
-    "check": "npm run lint && tsc --noEmit && npm run build"
+    "check": "npm run lint && tsc --noEmit && npm run build",
+    "package:installer": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File packaging/windows/build-installer.ps1"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

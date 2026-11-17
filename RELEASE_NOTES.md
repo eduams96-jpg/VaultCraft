@@ -1,25 +1,21 @@
-# VaultCraft Studio 1.0.0
+# VaultCraft Studio 1.0.2
 
-Primeira versão estável: gestor local de coleção e backlog de jogos para Windows.
+Atualização da distribuição Windows: instalador em português e janela própria com Microsoft WebView2, sem barra de endereços.
 
-## Funcionalidades
-- Coleção com estado, plataforma, origem, nota, horas, data de conclusão e análise.
-- Wishlist com prioridade e preço-alvo; radar de patches da Steam.
-- Scanner de pastas (PC/NAS) e importação em lote.
-- Roleta, estatísticas, Gamer Wrap-Up, Gamer Card, metas de backlog.
-- Backups JSON e snapshots automáticos; backups e restauro de saves.
-- Spotlight (`Ctrl+K`).
+- Inclui os fontes C# da janela e do serviço local, o bootstrap e os scripts de compilação.
+- Instala para o utilizador atual, com atalhos no menu Iniciar e opção de atalho no Ambiente de Trabalho.
+- Fecha o serviço local ao fechar a janela; preserva os dados em `%LOCALAPPDATA%\VaultCraft` ao atualizar ou desinstalar.
+- O instalador obtém o WebView2 Runtime da Microsoft se estiver em falta; nesse caso necessita de Internet.
+- Inclui instruções para reconstruir o instalador e um arquivo completo com código, histórico Git, pacote executável, bibliotecas WebView2 e compilador Inno Setup.
 
 ## Instalação
-Extrai o ZIP, faz duplo clique em `VaultCraft.vbs`. Não requer administrador nem Node.js instalado (o runtime vem incluído). Verifica o SHA-256 do ZIP com `SHA256SUMS.txt`.
 
-## Requisitos
-Windows 10 ou 11, x64. Microsoft Edge recomendado.
+Descarrega e executa `VaultCraft-Setup-1.0.2.exe`. Confere o SHA-256 com o ficheiro publicado junto ao instalador. Abre VaultCraft Studio pelo menu Iniciar.
 
-## Dados e privacidade
-Os dados ficam em `%LOCALAPPDATA%\VaultCraft` e não são alterados pela atualização ou desinstalação do programa. A app escuta só em `127.0.0.1` e não tem telemetria.
+O ZIP `VaultCraft-1.0.2-arquivo-completo.zip` serve para arquivo e reconstrução; não inclui coleções ou backups pessoais.
 
-## Limitações conhecidas
-- Pacote ZIP, não um instalador; os atalhos são criados por `Criar-Atalhos.vbs`.
-- Os executáveis não estão assinados digitalmente; o Windows pode mostrar avisos de "editor desconhecido".
-- Testes end-to-end feitos no computador de desenvolvimento, com dados isolados (18 verificações: arranque, persistência, lançamento de jogos, atalhos, proteção de pedidos). **Não testado** numa instalação Windows limpa, em Windows 10, nem sem ligação à Internet.
+## Validação e limites
+
+Compilação da janela e do serviço, criação do instalador e teste automático isolado de inicialização da janela com WebView2 em Windows 11 x64. Servidor verificado com página e API de jogos HTTP 200, base vazia e encerramento confirmado. Verificação integral dos ficheiros do arquivo por SHA-256. Esta atualização não altera a lógica de coleção e não repete os testes funcionais da versão 1.0.0.
+
+Executáveis sem assinatura digital. Não testado novamente em Windows 10, num Windows limpo ou sem WebView2 previamente instalado.

@@ -1,35 +1,24 @@
-VaultCraft Studio - pacote para Windows (x64)
-=============================================
+VaultCraft Studio 1.0.2 — Windows 10/11 x64
 
-COMO ARRANCAR
-  1. Extrai o ZIP inteiro para uma pasta (ex.: Documentos\VaultCraft).
-  2. Duplo clique em VaultCraft.vbs.
-  3. Opcional: duplo clique em Criar-Atalhos.vbs (atalhos no Ambiente de Trabalho
-     e no Menu Iniciar, só para a tua conta; pede confirmação).
+INSTALAR E ABRIR
+Executa VaultCraft-Setup-1.0.2.exe e segue os passos.
+Abre o VaultCraft Studio pelo menu Iniciar ou pelo atalho do Ambiente de Trabalho.
+A aplicação tem uma janela própria: não abre o navegador nem uma barra de endereços.
+Ao fechar a janela, o serviço local é terminado.
 
-PARAR
-  Parar-VaultCraft.bat (termina o servidor que escuta na porta 3000).
+COMPONENTES
+Inclui Node.js e os componentes do SDK Microsoft WebView2.
+Se faltar o WebView2 Runtime, o instalador obtém-no diretamente da Microsoft.
+Nesse caso, a instalação necessita de ligação à Internet.
 
-REQUISITOS
-  Windows 10 ou Windows 11, x64. Sem administrador e sem instalar Node.js:
-  o runtime (runtime\node.exe) vem incluído. Microsoft Edge abre a app numa janela
-  própria; sem Edge abre no browser predefinido.
+DADOS E ATUALIZAÇÕES
+Instala a atualização na mesma pasta da versão anterior.
+Os jogos e dados ficam em %LOCALAPPDATA%\VaultCraft, separados do programa.
+Atualizar ou desinstalar não apaga essa pasta.
 
-ONDE FICAM OS DADOS
-  %LOCALAPPDATA%\VaultCraft
-    vaultcraft.db   base de dados (criada na primeira execução a partir do modelo vazio)
-    backups\        backups JSON e snapshots automáticos
-    servidor.log    registo do servidor (útil se a app não arrancar)
-  Atualizar ou apagar a pasta do programa NÃO apaga estes dados.
+DIAGNÓSTICO
+Consulta desktop.log, arranque.log e servidor.log na pasta de dados.
 
-PRIVACIDADE
-  A app só escuta em 127.0.0.1. Não há telemetria. Pesquisas online (Steam,
-  HowLongToBeat) acontecem apenas quando as usas.
-
-VERIFICAR O PACOTE
-  Get-FileHash .\VaultCraft-<versão>-win-x64.zip -Algorithm SHA256
-  (o valor tem de coincidir com SHA256SUMS.txt da release)
-
-LICENÇAS
-  runtime\LICENSE-node.txt (Node.js, MIT). Licença do VaultCraft: ver LICENSE.txt
-  se existir; caso contrário, todos os direitos reservados.
+MICROSOFT WEBVIEW2
+SDK Microsoft WebView2 1.0.2903.40, © Microsoft Corporation.
+Termos: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.2903.40/License
