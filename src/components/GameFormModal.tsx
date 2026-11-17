@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { GameItem, GameMetadataResult } from "@/types/game";
 import { playUiSound } from "@/lib/ui-sfx";
 import { X, Search, Loader2, Sparkles, Image as ImageIcon, Save, HardDrive, Archive, Trophy, Crown, Tag, Calendar, Link2, Gamepad2 } from "lucide-react";
@@ -85,127 +85,51 @@ export function GameFormModal({
   defaultIsWishlist = false,
 }: GameFormModalProps) {
   const isEditing = Boolean(initialGame);
-
-  // Form State
-  const [title, setTitle] = useState("");
-  const [platform, setPlatform] = useState("PC");
-  const [originType, setOriginType] = useState("REPACK");
-  const [repackGroup, setRepackGroup] = useState("");
-  const [status, setStatus] = useState("BACKLOG");
-  const [rating, setRating] = useState<number | "">("");
-  const [coverUrl, setCoverUrl] = useState("");
-  const [bannerUrl, setBannerUrl] = useState("");
-  const [releaseYear, setReleaseYear] = useState<number | "">("");
-  const [genres, setGenres] = useState("");
-  const [storageLocation, setStorageLocation] = useState("");
-  const [executablePath, setExecutablePath] = useState("");
-  const [saveLocation, setSaveLocation] = useState("");
-  const [diskSpace, setDiskSpace] = useState("");
-  const [pcRequirements, setPcRequirements] = useState("");
-  const [tags, setTags] = useState("");
-  const [customCategories, setCustomCategories] = useState("");
-  const [timeToBeat, setTimeToBeat] = useState("");
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isArchived, setIsArchived] = useState(false);
-  const [hasSavefile, setHasSavefile] = useState(false);
-  const [hasAchievements, setHasAchievements] = useState(false);
-  const [isPlatinum, setIsPlatinum] = useState(false);
-  const [isWishlist, setIsWishlist] = useState(false);
-  const [wishlistStatus, setWishlistStatus] = useState("WAITING_CRACK");
-  const [wishlistPriority, setWishlistPriority] = useState("MEDIUM");
-  const [targetPrice, setTargetPrice] = useState<number | "">("");
-  const [installNotes, setInstallNotes] = useState("");
-  const [userReview, setUserReview] = useState("");
-  const [screenshots, setScreenshots] = useState("");
-  const [hoursPlayed, setHoursPlayed] = useState<number>(0);
-  const [gameVersion, setGameVersion] = useState("");
-  const [versionDate, setVersionDate] = useState("");
-  const [externalLink, setExternalLink] = useState("");
+  // Form State: inicializado a partir do jogo em edição. O modal é montado de novo
+  // (com key) cada vez que abre, por isso não precisa de efeito para repor os campos.
+  const [title, setTitle] = useState(initialGame?.title || "");
+  const [platform, setPlatform] = useState(initialGame?.platform || "PC");
+  const [originType, setOriginType] = useState(initialGame ? initialGame.originType || "STEAM" : "REPACK");
+  const [repackGroup, setRepackGroup] = useState(initialGame?.repackGroup || "");
+  const [status, setStatus] = useState(initialGame?.status || "BACKLOG");
+  const [rating, setRating] = useState<number | "">(initialGame?.rating ?? "");
+  const [coverUrl, setCoverUrl] = useState(initialGame?.coverUrl || "");
+  const [bannerUrl, setBannerUrl] = useState(initialGame?.bannerUrl || "");
+  const [releaseYear, setReleaseYear] = useState<number | "">(initialGame?.releaseYear ?? "");
+  const [genres, setGenres] = useState(initialGame?.genres || "");
+  const [storageLocation, setStorageLocation] = useState(initialGame?.storageLocation || "");
+  const [executablePath, setExecutablePath] = useState(initialGame?.executablePath || "");
+  const [saveLocation, setSaveLocation] = useState(initialGame?.saveLocation || "");
+  const [diskSpace, setDiskSpace] = useState(initialGame?.diskSpace || "");
+  const [pcRequirements, setPcRequirements] = useState(initialGame?.pcRequirements || "");
+  const [tags, setTags] = useState(initialGame?.tags || "");
+  const [customCategories, setCustomCategories] = useState(initialGame?.customCategories || "");
+  const [timeToBeat, setTimeToBeat] = useState(initialGame?.timeToBeat || "");
+  const [isInstalled, setIsInstalled] = useState(Boolean(initialGame?.isInstalled));
+  const [isArchived, setIsArchived] = useState(initialGame?.isArchived || false);
+  const [hasSavefile, setHasSavefile] = useState(initialGame?.hasSavefile || false);
+  const [hasAchievements, setHasAchievements] = useState(initialGame?.hasAchievements || false);
+  const [isPlatinum, setIsPlatinum] = useState(initialGame ? initialGame.isPlatinum || initialGame.status === "PLATINUM" || false : false);
+  const [isWishlist, setIsWishlist] = useState(initialGame ? initialGame.isWishlist || false : defaultIsWishlist);
+  const [wishlistStatus, setWishlistStatus] = useState(initialGame?.wishlistStatus || "WAITING_CRACK");
+  const [wishlistPriority, setWishlistPriority] = useState(initialGame?.wishlistPriority || "MEDIUM");
+  const [targetPrice, setTargetPrice] = useState<number | "">(initialGame?.targetPrice ?? "");
+  const [installNotes, setInstallNotes] = useState(initialGame?.installNotes || "");
+  const [userReview, setUserReview] = useState(initialGame?.userReview || "");
+  const [screenshots, setScreenshots] = useState(initialGame?.screenshots || "");
+  const [hoursPlayed, setHoursPlayed] = useState<number | "">(initialGame?.hoursPlayed || 0);
+  const [completionDate, setCompletionDate] = useState(() => (initialGame ? initialGame.completionDate ? initialGame.completionDate.split("T")[0] : "" : ""));
+  const [gameVersion, setGameVersion] = useState(initialGame?.gameVersion || "");
+  const [versionDate, setVersionDate] = useState(() => (initialGame ? initialGame.versionDate ? initialGame.versionDate.split("T")[0] : "" : ""));
+  const [externalLink, setExternalLink] = useState(initialGame?.externalLink || "");
 
   // Metadata Search State
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialGame?.title || "");
   const [isSearchingMeta, setIsSearchingMeta] = useState(false);
   const [metaResults, setMetaResults] = useState<GameMetadataResult[]>([]);
   const [showMetaDropdown, setShowMetaDropdown] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (initialGame) {
-      setTitle(initialGame.title || "");
-      setPlatform(initialGame.platform || "PC");
-      setOriginType(initialGame.originType || "STEAM");
-      setRepackGroup(initialGame.repackGroup || "");
-      setStatus(initialGame.status || "BACKLOG");
-      setRating(initialGame.rating ?? "");
-      setCoverUrl(initialGame.coverUrl || "");
-      setBannerUrl(initialGame.bannerUrl || "");
-      setReleaseYear(initialGame.releaseYear ?? "");
-      setGenres(initialGame.genres || "");
-      setStorageLocation(initialGame.storageLocation || "");
-      setExecutablePath(initialGame.executablePath || "");
-      setSaveLocation(initialGame.saveLocation || "");
-      setDiskSpace(initialGame.diskSpace || "");
-      setPcRequirements(initialGame.pcRequirements || "");
-      setTags(initialGame.tags || "");
-      setCustomCategories(initialGame.customCategories || "");
-      setTimeToBeat(initialGame.timeToBeat || "");
-      setIsInstalled(initialGame.isInstalled || false);
-      setIsArchived(initialGame.isArchived || false);
-      setHasSavefile(initialGame.hasSavefile || false);
-      setHasAchievements(initialGame.hasAchievements || false);
-      setIsPlatinum(initialGame.isPlatinum || initialGame.status === "PLATINUM" || false);
-      setIsWishlist(initialGame.isWishlist || false);
-      setWishlistStatus(initialGame.wishlistStatus || "WAITING_CRACK");
-      setWishlistPriority(initialGame.wishlistPriority || "MEDIUM");
-      setTargetPrice(initialGame.targetPrice ?? "");
-      setInstallNotes(initialGame.installNotes || "");
-      setUserReview(initialGame.userReview || "");
-      setScreenshots(initialGame.screenshots || "");
-      setHoursPlayed(initialGame.hoursPlayed || 0);
-      setGameVersion(initialGame.gameVersion || "");
-      setVersionDate(initialGame.versionDate ? initialGame.versionDate.split("T")[0] : "");
-      setExternalLink(initialGame.externalLink || "");
-      setSearchQuery(initialGame.title || "");
-    } else {
-      // Default reset
-      setTitle("");
-      setPlatform("PC");
-      setOriginType("REPACK");
-      setRepackGroup("");
-      setStatus("BACKLOG");
-      setRating("");
-      setCoverUrl("");
-      setBannerUrl("");
-      setReleaseYear("");
-      setGenres("");
-      setStorageLocation("");
-      setExecutablePath("");
-      setSaveLocation("");
-      setDiskSpace("");
-      setPcRequirements("");
-      setTags("");
-      setCustomCategories("");
-      setTimeToBeat("");
-      setIsInstalled(false);
-      setIsArchived(false);
-      setHasSavefile(false);
-      setHasAchievements(false);
-      setIsPlatinum(false);
-      setIsWishlist(defaultIsWishlist);
-      setWishlistStatus("WAITING_CRACK");
-      setWishlistPriority("MEDIUM");
-      setTargetPrice("");
-      setInstallNotes("");
-      setUserReview("");
-      setScreenshots("");
-      setHoursPlayed(0);
-      setGameVersion("");
-      setVersionDate("");
-      setExternalLink("");
-      setSearchQuery("");
-      setMetaResults([]);
-    }
-  }, [initialGame, isOpen]);
 
   if (!isOpen) return null;
 
@@ -252,7 +176,7 @@ export function GameFormModal({
         originType,
         repackGroup: originType === "REPACK" ? repackGroup.trim() || null : null,
         status,
-        rating: initialGame ? initialGame.rating : (rating !== "" ? Number(rating) : null),
+        rating: rating !== "" ? Math.min(10, Math.max(1, Math.round(Number(rating)))) : null,
         coverUrl: coverUrl.trim() || null,
         bannerUrl: bannerUrl.trim() || null,
         releaseYear: releaseYear !== "" ? Number(releaseYear) : null,
@@ -278,9 +202,10 @@ export function GameFormModal({
         gameVersion: gameVersion.trim() || null,
         versionDate: versionDate ? new Date(versionDate).toISOString() : null,
         externalLink: externalLink.trim() || null,
-        userReview: initialGame ? initialGame.userReview : (userReview.trim() || null),
+        userReview: userReview.trim() || null,
         screenshots: screenshots.trim() || null,
-        hoursPlayed: initialGame ? initialGame.hoursPlayed : (Number(hoursPlayed) || 0),
+        hoursPlayed: Math.max(0, Number(hoursPlayed) || 0),
+        completionDate: completionDate ? new Date(completionDate).toISOString() : null,
       });
       onClose();
     } catch (err) {
@@ -568,6 +493,60 @@ export function GameFormModal({
               )}
             </select>
           </div>
+
+          {/* Progresso pessoal: nota, horas, data de conclusão e análise */}
+          {!isWishlist && (
+            <div className="space-y-3 p-3.5 bg-zinc-950/40 border border-zinc-800 rounded-2xl">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-amber-300">Nota (1-10)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    step={1}
+                    placeholder="Sem nota"
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-indigo-300">Horas Jogadas</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={hoursPlayed}
+                    onChange={(e) => setHoursPlayed(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-emerald-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Data de Conclusão
+                  </label>
+                  <input
+                    type="date"
+                    value={completionDate}
+                    onChange={(e) => setCompletionDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-400">Análise / Diário Pessoal</label>
+                <textarea
+                  rows={3}
+                  placeholder="O que achaste do jogo, momentos marcantes, onde ficaste..."
+                  value={userReview}
+                  onChange={(e) => setUserReview(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Installation Details & Storage Location */}
           <div className="space-y-3 p-3.5 bg-zinc-950/40 border border-zinc-800 rounded-2xl">

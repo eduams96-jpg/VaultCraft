@@ -122,9 +122,10 @@ export function GamesVaultSection({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [
+  // Volta à primeira página quando um filtro ou a ordenação muda. Ajustado durante o
+  // render (padrão recomendado pelo React) em vez de num efeito, para não desenhar
+  // primeiro a lista antiga e depois a nova.
+  const filterKey = JSON.stringify([
     search,
     statusFilter,
     originFilter,
@@ -137,6 +138,11 @@ export function GamesVaultSection({
     activeCategoryFilter,
     sortBy,
   ]);
+  const [pagedFilterKey, setPagedFilterKey] = useState(filterKey);
+  if (pagedFilterKey !== filterKey) {
+    setPagedFilterKey(filterKey);
+    setVisibleCount(PAGE_SIZE);
+  }
 
   const hasMore = visibleCount < filteredGames.length;
 

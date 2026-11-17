@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GameTracker Vault - Coleção & Backlog de Jogos",
+  title: "VaultCraft Studio - Coleção & Backlog de Jogos",
   description: "Organiza a tua coleção de jogos: originais, repacks, ROMs e físicos com metadados e notas de instalação.",
   manifest: "/manifest.json",
   icons: {

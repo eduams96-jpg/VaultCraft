@@ -16,10 +16,21 @@ interface BackupModalProps {
   onRestoreSuccess: () => void;
 }
 
+async function loadSnapshotList(): Promise<SnapshotItem[] | null> {
+  try {
+    const res = await fetch("/api/backup/snapshots");
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data.snapshots) ? data.snapshots : [];
+  } catch {
+    return null;
+  }
+}
+
 export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalProps) {
   const [isRestoring, setIsRestoring] = useState(false);
   const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
-  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(true);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [restoringFilename, setRestoringFilename] = useState<string | null>(null);
   const [resultMsg, setResultMsg] = useState<{ type: "success" | "error"; text: string } | null>(
@@ -28,23 +39,24 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
 
   const fetchSnapshots = useCallback(async () => {
     setLoadingSnapshots(true);
-    try {
-      const res = await fetch("/api/backup/snapshots");
-      if (res.ok) {
-        const data = await res.json();
-        setSnapshots(data.snapshots || []);
-      }
-    } catch {}
-    finally {
-      setLoadingSnapshots(false);
-    }
+    const list = await loadSnapshotList();
+    if (list) setSnapshots(list);
+    setLoadingSnapshots(false);
   }, []);
 
+  // Recarrega a lista sempre que o modal abre (dados aplicados no callback da promessa)
   useEffect(() => {
-    if (isOpen) {
-      fetchSnapshots();
-    }
-  }, [isOpen, fetchSnapshots]);
+    if (!isOpen) return;
+    let cancelled = false;
+    loadSnapshotList().then((list) => {
+      if (cancelled) return;
+      if (list) setSnapshots(list);
+      setLoadingSnapshots(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -61,8 +73,8 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
       if (!res.ok) throw new Error(data.error || "Erro ao criar snapshot.");
       setResultMsg({ type: "success", text: `Snapshot criado (${data.snapshot?.filename})!` });
       await fetchSnapshots();
-    } catch (err: any) {
-      setResultMsg({ type: "error", text: err.message || "Falha ao criar snapshot." });
+    } catch (err) {
+      setResultMsg({ type: "error", text: (err instanceof Error ? err.message : "") || "Falha ao criar snapshot." });
     } finally {
       setCreatingSnapshot(false);
     }
@@ -83,8 +95,8 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
       setResultMsg({ type: "success", text: data.message });
       onRestoreSuccess();
       await fetchSnapshots();
-    } catch (err: any) {
-      setResultMsg({ type: "error", text: err.message || "Falha ao restaurar snapshot." });
+    } catch (err) {
+      setResultMsg({ type: "error", text: (err instanceof Error ? err.message : "") || "Falha ao restaurar snapshot." });
     } finally {
       setRestoringFilename(null);
     }
@@ -92,7 +104,12 @@ export function BackupModal({ isOpen, onClose, onRestoreSuccess }: BackupModalPr
 
   // Handle Export Download
   const handleDownloadBackup = () => {
-    window.location.href = "/api/backup";
+    const link = document.createElement("a");
+    link.href = "/api/backup";
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   // Handle Import / Restore from File

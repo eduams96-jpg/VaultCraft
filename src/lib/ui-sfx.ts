@@ -36,11 +36,22 @@ export function isSfxMuted(): boolean {
   }
 }
 
+const sfxListeners = new Set<() => void>();
+
+/** Para useSyncExternalStore: avisa quando o estado de silêncio muda. */
+export function subscribeSfxMuted(listener: () => void): () => void {
+  sfxListeners.add(listener);
+  return () => {
+    sfxListeners.delete(listener);
+  };
+}
+
 export function setSfxMuted(muted: boolean): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(SFX_STORAGE_KEY, muted ? "true" : "false");
   } catch {}
+  sfxListeners.forEach((l) => l());
 }
 
 export function toggleSfxMuted(): boolean {

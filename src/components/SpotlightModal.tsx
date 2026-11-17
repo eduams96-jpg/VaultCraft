@@ -51,10 +51,9 @@ type SpotlightEntry =
       action: () => void;
     };
 
-export function SpotlightModal({
-  isOpen,
+/** Painel da paleta: só é montado enquanto está aberto, por isso começa sempre limpo. */
+function SpotlightPanel({
   onClose,
-  onOpen,
   games,
   onSelectGame,
   onOpenRandomModal,
@@ -66,40 +65,15 @@ export function SpotlightModal({
   onOpenVersionRadarModal,
   onOpenGamerCardModal,
   onOpenGoalsModal,
-}: SpotlightModalProps) {
+}: Omit<SpotlightModalProps, "isOpen" | "onOpen">) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filterScope, setFilterScope] = useState<"ALL" | "GAMES" | "COMMANDS">("ALL");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Global Ctrl+K / Cmd+K shortcut
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        } else {
-          playUiSound("open");
-          onOpen();
-        }
-      } else if (e.key === "Escape" && isOpen) {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, onOpen]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setSelectedIndex(0);
-      setFilterScope("ALL");
-      setTimeout(() => inputRef.current?.focus(), 30);
-    }
-  }, [isOpen]);
+    inputRef.current?.focus();
+  }, []);
 
   const commands = useMemo(
     () => [
@@ -271,11 +245,10 @@ export function SpotlightModal({
     return list;
   }, [query, filterScope, games, commands]);
 
-  useEffect(() => {
+  const updateQuery = (value: string) => {
+    setQuery(value);
     setSelectedIndex(0);
-  }, [query, filterScope]);
-
-  if (!isOpen) return null;
+  };
 
   const handleActivateEntry = (entry: SpotlightEntry) => {
     playUiSound("open");
@@ -333,7 +306,7 @@ export function SpotlightModal({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => updateQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
             placeholder="Pesquisa rápida em Jogos, Categorias ou Comandos..."
             className="flex-1 bg-transparent text-sm sm:text-base font-medium text-white placeholder:text-zinc-500 focus:outline-none"
@@ -341,7 +314,7 @@ export function SpotlightModal({
           {query && (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => updateQuery("")}
               className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -365,7 +338,8 @@ export function SpotlightModal({
                 type="button"
                 onClick={() => {
                   playUiSound("click");
-                  setFilterScope(tab.key as any);
+                  setFilterScope(tab.key as "ALL" | "GAMES" | "COMMANDS");
+                  setSelectedIndex(0);
                   inputRef.current?.focus();
                 }}
                 className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
@@ -500,4 +474,33 @@ export function SpotlightModal({
       </div>
     </div>
   );
+}
+
+/**
+ * Paleta de comandos global (Ctrl/Cmd + K). O atalho vive aqui, sempre montado;
+ * o painel em si só existe enquanto está aberto.
+ */
+export function SpotlightModal({ isOpen, onOpen, ...panelProps }: SpotlightModalProps) {
+  const { onClose } = panelProps;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (isOpen) {
+          onClose();
+        } else {
+          playUiSound("open");
+          onOpen();
+        }
+      } else if (e.key === "Escape" && isOpen) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose, onOpen]);
+
+  return isOpen ? <SpotlightPanel {...panelProps} /> : null;
 }

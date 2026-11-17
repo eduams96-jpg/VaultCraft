@@ -557,10 +557,10 @@ Pokemon Emerald (GBA)`;
                       <span>Como funciona com a Privacidade da Steam:</span>
                     </div>
                     <p className="text-[11px] leading-relaxed">
-                      • Se o teu perfil tiver <strong>"Detalhes dos Jogos"</strong> como Privado, o importador recupera automaticamente todos os jogos verificados através dos <strong>crachás públicos e vitrines</strong>.
+                      • Se o teu perfil tiver <strong>“Detalhes dos Jogos”</strong> como Privado, o importador recupera automaticamente todos os jogos verificados através dos <strong>crachás públicos e vitrines</strong>.
                     </p>
                     <p className="text-[11px] leading-relaxed">
-                      • Para extrair a tua <strong>biblioteca completa (100%)</strong> de uma só vez via API, acede ao Steam $\rightarrow$ <em>Editar Perfil</em> $\rightarrow$ <em>Privacidade</em> $\rightarrow$ muda <em>"Detalhes dos jogos"</em> para <strong>Público</strong>.
+                      • Para extrair a tua <strong>biblioteca completa (100%)</strong> de uma só vez via API, acede ao Steam → <em>Editar Perfil</em> → <em>Privacidade</em> → muda <em>“Detalhes dos jogos”</em> para <strong>Público</strong>.
                     </p>
                   </div>
                 </div>
@@ -750,7 +750,7 @@ Pokemon Emerald (GBA)`;
                           <strong>Lista de Desejos / Wishlist Steam:</strong> No teu navegador ou na Steam, abre a tua Wishlist e copia os títulos dos jogos diretamente para esta caixa.
                         </li>
                         <li>
-                          <strong>Jogos Steam Já Instalados no PC:</strong> Usa a ferramenta <strong>"Scanner de Pastas"</strong> no menu superior e indica a tua pasta <code>steamapps\common</code> (ex: <code>C:\Program Files (x86)\Steam\steamapps\common</code> ou <code>D:\SteamLibrary\steamapps\common</code>).
+                          <strong>Jogos Steam Já Instalados no PC:</strong> Usa a ferramenta <strong>“Scanner de Pastas”</strong> no menu superior e indica a tua pasta <code>steamapps\common</code> (ex: <code>C:\Program Files (x86)\Steam\steamapps\common</code> ou <code>D:\SteamLibrary\steamapps\common</code>).
                         </li>
                       </ol>
                     </div>

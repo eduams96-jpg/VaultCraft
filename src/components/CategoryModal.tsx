@@ -3,14 +3,12 @@
 import React, { useState } from "react";
 import { CategoryItem, GameItem } from "@/types/game";
 import {
-  Folder,
   FolderPlus,
   X,
   Trash2,
   Plus,
   Check,
   Sparkles,
-  Tag,
   Loader2,
 } from "lucide-react";
 

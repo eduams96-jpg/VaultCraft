@@ -1,7 +1,7 @@
 @echo off
-title Parar GameTracker Vault
+title Parar VaultCraft Studio
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3000" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
-echo Servidor GameTracker encerrado com sucesso.
+echo Servidor VaultCraft encerrado com sucesso.
 timeout /t 2 >nul

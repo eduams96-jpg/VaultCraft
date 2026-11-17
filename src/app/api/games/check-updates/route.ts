@@ -80,10 +80,10 @@ export async function POST(request: Request) {
       updatesFoundCount,
       message: `${checkedCount} jogos verificados com a Steam API. (${updatesFoundCount} com patches mais recentes disponíveis)`,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Bulk check updates error:", error);
     return NextResponse.json(
-      { error: error.message || "Erro ao verificar atualizações em lote." },
+      { error: (error instanceof Error ? error.message : "") || "Erro ao verificar atualizações em lote." },
       { status: 500 }
     );
   }

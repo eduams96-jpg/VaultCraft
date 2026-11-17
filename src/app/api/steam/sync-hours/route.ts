@@ -109,10 +109,10 @@ export async function POST(req: NextRequest) {
           ? `${updatedCount} jogos da Steam sincronizados com novas horas de jogo!`
           : "Todas as horas de jogo da Steam já estavam perfeitamente atualizadas!",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro na sincronização de horas Steam:", error);
     return NextResponse.json(
-      { error: error.message || "Erro ao comunicar com a Steam API." },
+      { error: (error instanceof Error ? error.message : "") || "Erro ao comunicar com a Steam API." },
       { status: 500 }
     );
   }

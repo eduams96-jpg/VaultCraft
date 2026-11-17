@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import {
   Plus,
   Gamepad2,
@@ -25,7 +25,7 @@ import {
   Search,
 } from "lucide-react";
 import { VaultCraftLogo } from "@/components/CraftIcons";
-import { isSfxMuted, toggleSfxMuted, playUiSound } from "@/lib/ui-sfx";
+import { isSfxMuted, subscribeSfxMuted, toggleSfxMuted, playUiSound } from "@/lib/ui-sfx";
 
 interface NavbarProps {
   onOpenAddModal: () => void;
@@ -75,12 +75,8 @@ export function Navbar({
   wishlistCount,
 }: NavbarProps) {
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [sfxMuted, setSfxMutedState] = useState(false);
+  const sfxMuted = useSyncExternalStore(subscribeSfxMuted, isSfxMuted, () => false);
   const toolsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSfxMutedState(isSfxMuted());
-  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -421,7 +417,7 @@ export function Navbar({
           {/* Sound SFX Toggle (inside unified dock) */}
           <button
             type="button"
-            onClick={() => setSfxMutedState(toggleSfxMuted())}
+            onClick={() => toggleSfxMuted()}
             title={sfxMuted ? "Ativar Micro-Sons de Interface" : "Silenciar Micro-Sons de Interface"}
             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 ${
               sfxMuted

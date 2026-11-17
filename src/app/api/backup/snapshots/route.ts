@@ -39,10 +39,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Snapshot action error:", error);
     return NextResponse.json(
-      { error: error.message || "Erro ao processar snapshot." },
+      { error: (error instanceof Error ? error.message : "") || "Erro ao processar snapshot." },
       { status: 500 }
     );
   }

@@ -26,7 +26,7 @@ export async function GET() {
       missingYear,
       totalToEnrich,
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Erro ao consultar pendências" }, { status: 500 });
   }
 }

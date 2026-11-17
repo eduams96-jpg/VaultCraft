@@ -21,6 +21,19 @@ import { GamesVaultSection } from "@/components/GamesVaultSection";
 import { GameScanModal } from "@/components/GameScanModal";
 import { SpotlightModal } from "@/components/SpotlightModal";
 import { useMultiSelect } from "@/hooks/useMultiSelect";
+import { useViewMode, setStoredViewMode, type ViewMode } from "@/hooks/useBrowserState";
+
+/** GET JSON da API local; devolve null (e regista o erro) se falhar. */
+async function fetchJson<T>(url: string, label: string): Promise<T | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as T;
+  } catch (err) {
+    console.error(`Erro ao carregar ${label}:`, err);
+    return null;
+  }
+}
 
 export default function HomePage() {
   const [games, setGames] = useState<GameItem[]>([]);
@@ -43,7 +56,7 @@ export default function HomePage() {
   const [archiveFilter, setArchiveFilter] = useState("ALL");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("updatedAt");
-  const [viewMode, setViewMode] = useState<"grid" | "compact" | "list">("grid");
+  const viewMode = useViewMode();
 
   // Bulk Edit Modal State
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -99,67 +112,34 @@ export default function HomePage() {
     };
   }, []);
 
-  // Fetch games from API
+  // Carregamento de dados: todos os setState acontecem depois do await (nunca de forma
+  // síncrona dentro do efeito de arranque).
   const fetchGames = useCallback(async () => {
-    try {
-      const res = await fetch("/api/games");
-      if (res.ok) {
-        const data = await res.json();
-        setGames(data);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar jogos:", err);
-    } finally {
-      setLoading(false);
-    }
+    const data = await fetchJson<GameItem[]>("/api/games", "jogos");
+    if (data) setGames(data);
+    setLoading(false);
   }, []);
 
-  // Fetch categories from API
   const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/categories");
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar categorias:", err);
-    }
+    const data = await fetchJson<CategoryItem[]>("/api/categories", "categorias");
+    if (data) setCategories(data);
   }, []);
 
-  // Fetch backlog goals from API
   const fetchGoals = useCallback(async () => {
-    try {
-      const res = await fetch("/api/goals");
-      if (res.ok) {
-        const data = await res.json();
-        setGoals(data);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar metas:", err);
-    }
+    const data = await fetchJson<GoalItem[]>("/api/goals", "metas");
+    if (data) setGoals(data);
   }, []);
 
-  // Restore the saved view mode once on mount. The value is persisted by
-  // handleViewModeChange (not by an effect) so a StrictMode double-mount
-  // can never overwrite the stored preference with the default.
+  // Remove chaves antigas da Videoteca que já não são usadas
   useEffect(() => {
     try {
-      const savedGameView = localStorage.getItem("gt_gameViewMode");
-      if (savedGameView === "grid" || savedGameView === "compact" || savedGameView === "list") {
-        setViewMode(savedGameView);
-      }
-      // Chaves antigas da Videoteca, já sem uso
       localStorage.removeItem("gt_activeVault");
       localStorage.removeItem("gt_mediaViewMode");
     } catch {}
   }, []);
 
-  const handleViewModeChange = useCallback((mode: "grid" | "compact" | "list") => {
-    setViewMode(mode);
-    try {
-      localStorage.setItem("gt_gameViewMode", mode);
-    } catch {}
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setStoredViewMode(mode);
   }, []);
 
   // Global shortcuts: Alt+N opens the add-game modal; Escape closes the top-most modal
@@ -188,11 +168,25 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mainTab, isFormModalOpen, isGameScanOpen, gameDetail]);
 
+  // Carregamento inicial: os dados são aplicados no callback da promessa e ignorados
+  // se o componente já tiver sido desmontado (ex.: duplo mount do StrictMode em dev).
   useEffect(() => {
-    fetchGames();
-    fetchCategories();
-    fetchGoals();
-  }, [fetchGames, fetchCategories, fetchGoals]);
+    let cancelled = false;
+    Promise.all([
+      fetchJson<GameItem[]>("/api/games", "jogos"),
+      fetchJson<CategoryItem[]>("/api/categories", "categorias"),
+      fetchJson<GoalItem[]>("/api/goals", "metas"),
+    ]).then(([gamesData, categoriesData, goalsData]) => {
+      if (cancelled) return;
+      if (gamesData) setGames(gamesData);
+      if (categoriesData) setCategories(categoriesData);
+      if (goalsData) setGoals(goalsData);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Wishlist count
   const wishlistCount = useMemo(() => {
@@ -968,9 +962,9 @@ export default function HomePage() {
           ? `✨ ${data.updated} jogos enriquecidos! (${data.remaining} restantes - clica de novo para continuar)`
           : `🎉 ${data.updated} jogos enriquecidos! Toda a biblioteca está completa com HowLongToBeat!`
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err.message || "Erro ao enriquecer dados.", "error");
+      showToast((err instanceof Error ? err.message : "") || "Erro ao enriquecer dados.", "error");
     } finally {
       setIsEnriching(false);
     }
@@ -991,9 +985,9 @@ export default function HomePage() {
 
       await fetchGames();
       showToast(data.message || "Horas da Steam sincronizadas com sucesso!");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err.message || "Erro ao comunicar com a Steam.", "error");
+      showToast((err instanceof Error ? err.message : "") || "Erro ao comunicar com a Steam.", "error");
     } finally {
       setIsSyncingSteam(false);
     }
@@ -1027,9 +1021,9 @@ export default function HomePage() {
       if (!res.ok) throw new Error(data.error || "Erro ao sincronizar disco de jogos.");
       await fetchGames();
       showToast(data.message || "Disco de jogos sincronizado com sucesso!");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.message || "Erro ao sincronizar pastas de jogos.", "error");
+      showToast((err instanceof Error ? err.message : "") || "Erro ao sincronizar pastas de jogos.", "error");
     } finally {
       setIsRescanningGames(false);
     }
@@ -1185,7 +1179,7 @@ export default function HomePage() {
           onBulkDelete={handleBulkDelete}
           onBulkToggleArchive={handleBulkToggleArchive}
           onBulkTogglePlatinum={handleBulkTogglePlatinum}
-          onBulkUpdateStatus={(st) => handleBulkApplyEdit({ status: st as any })}
+          onBulkUpdateStatus={(st) => handleBulkApplyEdit({ status: st as BulkEditUpdates["status"] })}
         />
       )}
 
@@ -1214,9 +1208,11 @@ export default function HomePage() {
         onAutoFranchises={handleAutoFranchises}
       />
 
-      {/* Add / Edit Form Modal */}
+      {/* Add / Edit Form Modal: montado só quando abre, com key, para começar sempre com os dados certos */}
+      {isFormModalOpen && (
       <GameFormModal
-        isOpen={isFormModalOpen}
+        key={gameToEdit?.id ?? (defaultIsWishlist ? "new-wishlist" : "new")}
+        isOpen
         onClose={() => {
           setIsFormModalOpen(false);
           setGameToEdit(null);
@@ -1226,9 +1222,12 @@ export default function HomePage() {
         initialGame={gameToEdit}
         defaultIsWishlist={defaultIsWishlist}
       />
+      )}
 
-      {/* Game Detail Modal */}
+      {/* Game Detail Modal: key por jogo, para abrir sempre com estado limpo */}
+      {gameDetail && (
       <GameDetailModal
+        key={gameDetail.id}
         game={gameDetail}
         onClose={() => setGameDetail(null)}
         onEdit={(game) => {
@@ -1248,6 +1247,7 @@ export default function HomePage() {
           setGameDetail(updated);
         }}
       />
+      )}
 
       {/* Batch Import Modal */}
       <BatchImportModal

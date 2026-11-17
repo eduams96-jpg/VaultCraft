@@ -46,11 +46,11 @@ export async function POST(request: Request) {
     await createAutoSnapshot("before-restore");
     const summary = await restoreUnifiedBackupData(body);
     return NextResponse.json(summary);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Backup import error:", error);
-    const status = error?.message === "Ficheiro de backup inválido" ? 400 : 500;
+    const status = (error instanceof Error ? error.message : "") === "Ficheiro de backup inválido" ? 400 : 500;
     return NextResponse.json(
-      { error: error?.message || "Erro ao restaurar a cópia de segurança" },
+      { error: (error instanceof Error ? error.message : "") || "Erro ao restaurar a cópia de segurança" },
       { status }
     );
   }

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { GameItem } from "@/types/game";
+import { useNowMinute } from "@/hooks/useBrowserState";
 import {
   X,
   Tag,
@@ -12,10 +13,6 @@ import {
   Clock,
   Search,
   Loader2,
-  Calendar,
-  Sparkles,
-  Layers,
-  Archive,
 } from "lucide-react";
 
 interface VersionRadarModalProps {
@@ -37,12 +34,8 @@ export function VersionRadarModal({
   const [filterTab, setFilterTab] = useState<"ALL" | "UPDATES_AVAILABLE" | "STABLE" | "UP_TO_DATE">("ALL");
   const [isCheckingBulk, setIsCheckingBulk] = useState(false);
   const [bulkStatusMsg, setBulkStatusMsg] = useState<string | null>(null);
-  const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
-
-  // Defer Date.now() to client mount to prevent Next.js blocking prerender error
-  useEffect(() => {
-    setCurrentTimestamp(Date.now());
-  }, []);
+  // null durante o prerender (Date.now() no servidor bloquearia o prerender estático)
+  const currentTimestamp = useNowMinute();
 
   const collection = useMemo(() => games.filter((g) => !g.isWishlist), [games]);
 
@@ -132,8 +125,8 @@ export function VersionRadarModal({
 
       await onRefreshGames();
       setBulkStatusMsg(data.message || "Verificação concluída!");
-    } catch (err: any) {
-      setBulkStatusMsg(err.message || "Erro ao verificar.");
+    } catch (err) {
+      setBulkStatusMsg((err instanceof Error ? err.message : "") || "Erro ao verificar.");
     } finally {
       setIsCheckingBulk(false);
     }
@@ -244,7 +237,7 @@ export function VersionRadarModal({
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setFilterTab(tab.key as any)}
+                onClick={() => setFilterTab(tab.key as typeof filterTab)}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
                   filterTab === tab.key
                     ? "bg-purple-600 text-white shadow-sm"
@@ -279,6 +272,7 @@ export function VersionRadarModal({
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-14 bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 shrink-0">
                       {game.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={game.coverUrl} alt={game.title} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs">🎮</div>

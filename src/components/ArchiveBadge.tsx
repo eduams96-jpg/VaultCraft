@@ -1,5 +1,5 @@
 import React from "react";
-import { Archive, Check } from "lucide-react";
+import { Archive } from "lucide-react";
 
 interface ArchiveBadgeProps {
   isArchived: boolean;

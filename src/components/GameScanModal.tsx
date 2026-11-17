@@ -5,8 +5,6 @@ import {
   X,
   FolderSearch,
   Loader2,
-  Check,
-  HardDrive,
   Gamepad2,
   ExternalLink,
   CheckSquare,
@@ -73,8 +71,8 @@ export function GameScanModal({
       });
       setSelectedSet(initialSelected);
       playUiSound("switch");
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Erro ao ler pasta.");
+    } catch (err) {
+      setErrorMsg((err instanceof Error ? err.message : "") || "Erro ao ler pasta.");
     } finally {
       setIsScanning(false);
     }
@@ -104,10 +102,10 @@ export function GameScanModal({
     }
   };
 
-  const updateItemField = (
+  const updateItemField = <K extends keyof ScannedGameCandidate>(
     idx: number,
-    field: keyof ScannedGameCandidate,
-    value: any
+    field: K,
+    value: ScannedGameCandidate[K]
   ) => {
     setItems((prev) =>
       prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it))
@@ -158,8 +156,8 @@ export function GameScanModal({
       playUiSound("platinum");
       onImportSuccess();
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Erro ao guardar jogos.");
+    } catch (err) {
+      setErrorMsg((err instanceof Error ? err.message : "") || "Erro ao guardar jogos.");
     } finally {
       setIsImporting(false);
     }

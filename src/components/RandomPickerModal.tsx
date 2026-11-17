@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { GameItem } from "@/types/game";
 import { OriginBadge } from "./OriginBadge";
 import { playUiSound } from "@/lib/ui-sfx";
@@ -24,6 +24,28 @@ interface RandomPickerModalProps {
   onSelectGame: (game: GameItem) => void;
 }
 
+const SPIN_TICKS = 16;
+const SPIN_INTERVAL_MS = 65;
+
+const PENDING_STATUSES = new Set(["BACKLOG", "PLAYING", "AVAILABLE", "NOT_STARTED"]);
+
+function filterCandidates(
+  games: GameItem[],
+  opts: { onlyBacklog: boolean; onlyShortGames: boolean; onlyInstalled: boolean }
+): GameItem[] {
+  return games.filter((g) => {
+    if (g.isWishlist) return false;
+    if (opts.onlyBacklog && !PENDING_STATUSES.has(g.status)) return false;
+    if (opts.onlyInstalled && !g.isInstalled) return false;
+    if (opts.onlyShortGames) {
+      if (!g.timeToBeat) return false;
+      const match = g.timeToBeat.match(/(\d+(?:\.\d+)?)\s*h/i);
+      if (!match || parseFloat(match[1]) > 15) return false;
+    }
+    return true;
+  });
+}
+
 export function RandomPickerModal({
   isOpen,
   onClose,
@@ -34,70 +56,41 @@ export function RandomPickerModal({
   const [onlyShortGames, setOnlyShortGames] = useState(false);
   const [onlyInstalled, setOnlyInstalled] = useState(false);
 
-  const [selectedGame, setSelectedGame] = useState<GameItem | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const spinIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [spunGame, setSpunGame] = useState<GameItem | null>(null);
+  const [spinActive, setSpinActive] = useState(false);
+  const [spinRequest, setSpinRequest] = useState(0);
 
-  const candidateGames = games.filter((g) => {
-    if (g.isWishlist) return false;
-    if (
-      onlyBacklog &&
-      g.status !== "BACKLOG" &&
-      g.status !== "PLAYING" &&
-      g.status !== "AVAILABLE" &&
-      g.status !== "NOT_STARTED"
-    ) {
-      return false;
-    }
-    if (onlyInstalled && !g.isInstalled) return false;
-    if (onlyShortGames) {
-      if (!g.timeToBeat) return false;
-      const match = g.timeToBeat.match(/(\d+(?:\.\d+)?)\s*h/i);
-      if (!match || parseFloat(match[1]) > 15) return false;
-    }
-    return true;
-  });
+  const candidateGames = useMemo(
+    () => filterCandidates(games, { onlyBacklog, onlyShortGames, onlyInstalled }),
+    [games, onlyBacklog, onlyShortGames, onlyInstalled]
+  );
 
-  const stopSpin = () => {
-    if (spinIntervalRef.current) {
-      clearInterval(spinIntervalRef.current);
-      spinIntervalRef.current = null;
-    }
-    setIsSpinning(false);
-  };
+  // Sem candidatos não há resultado nem animação, mesmo que um sorteio tenha sido interrompido
+  const selectedGame = candidateGames.length > 0 ? spunGame : null;
+  const isSpinning = spinActive && candidateGames.length > 0;
 
-  const spinWheel = () => {
-    stopSpin();
-    if (candidateGames.length === 0) {
-      setSelectedGame(null);
-      return;
-    }
+  // Animação do sorteio: arranca ao abrir, quando um filtro muda ou em "Sortear Outro".
+  // O estado só muda dentro do callback do intervalo e o cleanup pára sempre o
+  // temporizador (fechar o modal a meio já não deixa sons a tocar por trás).
+  useEffect(() => {
+    if (!isOpen || candidateGames.length === 0) return;
     const pool = candidateGames;
-    setIsSpinning(true);
     let counter = 0;
-    const maxSpins = 16;
-    const intervalTime = 65;
-
-    spinIntervalRef.current = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * pool.length);
-      setSelectedGame(pool[randomIndex]);
-      if (counter % 2 === 0) playUiSound("click");
+    const id = setInterval(() => {
+      setSpunGame(pool[Math.floor(Math.random() * pool.length)]);
       counter++;
-
-      if (counter >= maxSpins) {
-        stopSpin();
+      if (counter === 1) setSpinActive(true);
+      if (counter % 2 === 1) playUiSound("click");
+      if (counter >= SPIN_TICKS) {
+        clearInterval(id);
+        setSpinActive(false);
         playUiSound("platinum");
       }
-    }, intervalTime);
-  };
+    }, SPIN_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isOpen, candidateGames, spinRequest]);
 
-  // Spin on open and whenever a filter changes; stop the timer on close/unmount
-  // so it never keeps firing (and playing sounds) behind a closed modal.
-  useEffect(() => {
-    if (isOpen) spinWheel();
-    return stopSpin;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, onlyBacklog, onlyShortGames, onlyInstalled]);
+  const spinWheel = () => setSpinRequest((n) => n + 1);
 
   if (!isOpen) return null;
 

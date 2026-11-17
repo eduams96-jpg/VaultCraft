@@ -120,7 +120,7 @@ export async function GET(
             });
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error("Steam news fetch error:", err);
       }
     }
@@ -154,10 +154,10 @@ export async function GET(
       message:
         "Nenhuma versão registada e não foi possível localizar anúncios oficiais de atualização na Steam.",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error checking game update:", error);
     return NextResponse.json(
-      { error: error.message || "Erro ao verificar atualizações do jogo." },
+      { error: (error instanceof Error ? error.message : "") || "Erro ao verificar atualizações do jogo." },
       { status: 500 }
     );
   }

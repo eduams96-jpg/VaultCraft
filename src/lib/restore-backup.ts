@@ -17,20 +17,34 @@ export interface RestoreSummary {
  * Restaura dados de um backup JSON unificado (Jogos, Filmes & Séries, Categorias e Metas)
  * evitando duplicados em registos já existentes.
  */
-export async function restoreUnifiedBackupData(body: any): Promise<RestoreSummary> {
-  let gamesToImport: any[] = [];
-  let mediaToImport: any[] = [];
-  let categoriesToImport: any[] = [];
-  let goalsToImport: any[] = [];
+/**
+ * Um registo vindo de um ficheiro de backup. O JSON é entrada externa e o formato mudou
+ * entre versões (números como texto, campos em falta), por isso cada campo é convertido
+ * explicitamente (Number/parseInt/Boolean/new Date) antes de chegar ao Prisma.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- formato livre, validado campo a campo abaixo
+type BackupRecord = Record<string, any>;
+
+function asRecords(value: unknown): BackupRecord[] {
+  return Array.isArray(value)
+    ? value.filter((v): v is BackupRecord => Boolean(v) && typeof v === "object")
+    : [];
+}
+
+export async function restoreUnifiedBackupData(body: unknown): Promise<RestoreSummary> {
+  let gamesToImport: BackupRecord[] = [];
+  let mediaToImport: BackupRecord[] = [];
+  let categoriesToImport: BackupRecord[] = [];
+  let goalsToImport: BackupRecord[] = [];
 
   if (Array.isArray(body)) {
-    gamesToImport = body;
+    gamesToImport = asRecords(body);
   } else if (body && typeof body === "object") {
-    if (Array.isArray(body.games)) gamesToImport = body.games;
-    if (Array.isArray(body.media)) mediaToImport = body.media;
-    else if (Array.isArray(body.mediaItems)) mediaToImport = body.mediaItems;
-    if (Array.isArray(body.categories)) categoriesToImport = body.categories;
-    if (Array.isArray(body.goals)) goalsToImport = body.goals;
+    const data = body as Record<string, unknown>;
+    gamesToImport = asRecords(data.games);
+    mediaToImport = asRecords(Array.isArray(data.media) ? data.media : data.mediaItems);
+    categoriesToImport = asRecords(data.categories);
+    goalsToImport = asRecords(data.goals);
   } else {
     throw new Error("Ficheiro de backup inválido");
   }

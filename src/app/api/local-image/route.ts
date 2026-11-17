@@ -36,8 +36,8 @@ export async function GET(request: Request) {
         "Cache-Control": "public, max-age=86400, immutable",
       },
     });
-  } catch (error: any) {
-    if (error?.digest === "NEXT_PRERENDER_INTERRUPTED") {
+  } catch (error) {
+    if ((error as { digest?: string } | null)?.digest === "NEXT_PRERENDER_INTERRUPTED") {
       throw error;
     }
     return new NextResponse("Not Found", { status: 404 });

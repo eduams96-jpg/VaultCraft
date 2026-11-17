@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { GameItem } from "@/types/game";
 import { StatusBadge } from "./StatusBadge";
-import { Star, Trophy, Sparkles, ChevronDown, ChevronUp, Clock, Gamepad2, Award, Play } from "lucide-react";
+import { Star, Trophy, Sparkles, ChevronDown, ChevronUp, Clock, Gamepad2, Award } from "lucide-react";
 import { playUiSound } from "@/lib/ui-sfx";
 
 interface HallOfFameProps {

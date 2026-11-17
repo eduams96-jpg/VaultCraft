@@ -80,8 +80,8 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(games);
-  } catch (error: any) {
-    if (error?.digest === "NEXT_PRERENDER_INTERRUPTED") {
+  } catch (error) {
+    if ((error as { digest?: string } | null)?.digest === "NEXT_PRERENDER_INTERRUPTED") {
       throw error;
     }
     console.error("Failed to fetch games:", error);

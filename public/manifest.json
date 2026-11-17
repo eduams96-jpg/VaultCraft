@@ -1,6 +1,6 @@
 {
-  "name": "GameTracker Vault - Coleção & Backlog",
-  "short_name": "GameVault",
+  "name": "VaultCraft Studio - Coleção & Backlog de Jogos",
+  "short_name": "VaultCraft",
   "description": "Organizador e gestor de jogos: originais, repacks, ROMs e físicos com metadados automáticos.",
   "start_url": "/",
   "display": "standalone",

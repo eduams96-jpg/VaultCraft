@@ -114,7 +114,6 @@ export async function fetchHowLongToBeat(title: string): Promise<HLTBResult | nu
     if (!data?.data || data.data.length === 0) return null;
 
     // Pick top matching game
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const match = data.data[0];
     const mainH = formatHours(match.comp_main);
     const plusH = formatHours(match.comp_plus);

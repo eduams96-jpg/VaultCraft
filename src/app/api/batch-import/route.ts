@@ -110,7 +110,7 @@ async function fetchWikipediaMetadata(title: string) {
 
     const sumRes = await fetch(summaryUrl, {
       headers: {
-        "User-Agent": "GameTrackerVault/1.0 (mailto:gametracker@local.dev)",
+        "User-Agent": "VaultCraftStudio/1.0 (local game library manager)",
       },
       signal: AbortSignal.timeout(3000),
     });
@@ -161,7 +161,7 @@ async function fetchWikipediaMetadata(title: string) {
 
     const searchRes = await fetch(searchUrl, {
       headers: {
-        "User-Agent": "GameTrackerVault/1.0 (mailto:gametracker@local.dev)",
+        "User-Agent": "VaultCraftStudio/1.0 (local game library manager)",
       },
       signal: AbortSignal.timeout(3000),
     });
@@ -176,7 +176,7 @@ async function fetchWikipediaMetadata(title: string) {
 
         const pageRes = await fetch(pageUrl, {
           headers: {
-            "User-Agent": "GameTrackerVault/1.0 (mailto:gametracker@local.dev)",
+            "User-Agent": "VaultCraftStudio/1.0 (local game library manager)",
           },
           signal: AbortSignal.timeout(3000),
         });

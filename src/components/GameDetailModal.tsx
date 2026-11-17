@@ -35,6 +35,7 @@ import {
   History,
 } from "lucide-react";
 import { playUiSound } from "@/lib/ui-sfx";
+import { useNowMinute } from "@/hooks/useBrowserState";
 import { requestGameLaunch } from "@/lib/game-actions";
 
 interface SaveBackupSnapshot {
@@ -45,7 +46,7 @@ interface SaveBackupSnapshot {
 }
 
 interface GameDetailModalProps {
-  game: GameItem | null;
+  game: GameItem;
   onClose: () => void;
   onEdit: (game: GameItem) => void;
   onDelete: (game: GameItem) => void;
@@ -75,62 +76,43 @@ export function GameDetailModal({
   const [saveBackupStatus, setSaveBackupStatus] = useState<string | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [updateCheckMsg, setUpdateCheckMsg] = useState<string | null>(null);
-  const [localGame, setLocalGame] = useState<GameItem | null>(game);
-  const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
-  const [linkInput, setLinkInput] = useState("");
-  const [isEditingLink, setIsEditingLink] = useState(false);
+  const currentTimestamp = useNowMinute();
+  const [linkInput, setLinkInput] = useState(game.externalLink || "");
+  const [isEditingLink, setIsEditingLink] = useState(!game.externalLink);
   const [isSavingLink, setIsSavingLink] = useState(false);
   const [saveBackups, setSaveBackups] = useState<SaveBackupSnapshot[]>([]);
-  const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+  const [isLoadingBackups, setIsLoadingBackups] = useState(true);
   const [restoringBackupName, setRestoringBackupName] = useState<string | null>(null);
-  const [saveLocationInput, setSaveLocationInput] = useState("");
+  const [saveLocationInput, setSaveLocationInput] = useState(game.saveLocation || "");
   const [isEditingSaveLoc, setIsEditingSaveLoc] = useState(false);
   const [isSavingSaveLoc, setIsSavingSaveLoc] = useState(false);
   const [isRescanningGameDisk, setIsRescanningGameDisk] = useState(false);
   const [diskRescanFeedback, setDiskRescanFeedback] = useState<string | null>(null);
 
-  useEffect(() => {
-    setCurrentTimestamp(Date.now());
-  }, []);
-
-  const gameId = game?.id ?? null;
-  const gameTitle = game?.title ?? null;
-  const gameExternalLink = game?.externalLink || "";
-  const gameSaveLocation = game?.saveLocation || "";
-
-  // Mantém a cópia local alinhada com o objeto do pai (toggles, edições, etc.)
-  useEffect(() => {
-    setLocalGame(game);
-  }, [game]);
-
-  // As mensagens de feedback só são limpas ao abrir OUTRO jogo. Antes eram limpas em cada
-  // atualização do mesmo jogo, pelo que o resultado de "verificar atualizações" /
-  // "verificar disco" desaparecia no mesmo instante em que era mostrado.
-  useEffect(() => {
-    setUpdateCheckMsg(null);
-    setDiskRescanFeedback(null);
-  }, [gameId]);
-
-  useEffect(() => {
+  // O modal é montado com key={game.id}: abrir outro jogo começa sempre com estado limpo.
+  // Se o próprio jogo mudar enquanto está aberto (ex.: editado no formulário), os campos
+  // de link e pasta de saves acompanham a alteração (ajuste durante o render).
+  const gameExternalLink = game.externalLink || "";
+  const gameSaveLocation = game.saveLocation || "";
+  const [syncedLink, setSyncedLink] = useState(gameExternalLink);
+  if (syncedLink !== gameExternalLink) {
+    setSyncedLink(gameExternalLink);
     setLinkInput(gameExternalLink);
     setIsEditingLink(!gameExternalLink);
-  }, [gameId, gameExternalLink]);
-
-  useEffect(() => {
+  }
+  const [syncedSaveLocation, setSyncedSaveLocation] = useState(gameSaveLocation);
+  if (syncedSaveLocation !== gameSaveLocation) {
+    setSyncedSaveLocation(gameSaveLocation);
     setSaveLocationInput(gameSaveLocation);
     setIsEditingSaveLoc(false);
-  }, [gameId, gameSaveLocation]);
+  }
 
-  // Lista de backups de saves: só recarrega quando muda o jogo (ou o título, que dá nome
-  // às pastas de backup) e ignora respostas atrasadas de um jogo aberto anteriormente.
+  // Lista de backups de saves (recarrega se o título mudar, porque dá nome às pastas);
+  // ignora respostas que cheguem depois de o modal fechar.
+  const gameId = game.id;
+  const gameTitle = game.title;
   useEffect(() => {
-    if (!gameId) {
-      setSaveBackups([]);
-      return;
-    }
-
     let cancelled = false;
-    setIsLoadingBackups(true);
     fetch(`/api/games/${gameId}/save`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -149,9 +131,7 @@ export function GameDetailModal({
     };
   }, [gameId, gameTitle]);
 
-  if (!game) return null;
-
-  const activeGame = localGame || game;
+  const activeGame = game;
 
   const copyNotesToClipboard = () => {
     if (activeGame.installNotes) {
@@ -174,7 +154,6 @@ export function GameDetailModal({
       });
       const data = await res.json();
       if (res.ok && data.game) {
-        setLocalGame(data.game);
         onGameUpdated?.(data.game);
         setDiskRescanFeedback(data.message || "Disco verificado!");
         playUiSound("success");
@@ -221,7 +200,6 @@ export function GameDetailModal({
           setSaveBackups(data.backups);
         }
         if (data.updatedGame) {
-          setLocalGame(data.updatedGame);
           onGameUpdated?.(data.updatedGame);
         }
         playUiSound("success");
@@ -310,7 +288,6 @@ export function GameDetailModal({
       });
       if (res.ok) {
         const updated = await res.json();
-        setLocalGame(updated);
         onGameUpdated?.(updated);
         setIsEditingSaveLoc(false);
         playUiSound("success");
@@ -328,12 +305,11 @@ export function GameDetailModal({
       if (!res.ok) throw new Error(data.error || "Erro ao verificar atualizações.");
 
       if (data.game) {
-        setLocalGame(data.game);
         onGameUpdated?.(data.game);
       }
       setUpdateCheckMsg(data.message || "Verificação concluída!");
-    } catch (err: any) {
-      setUpdateCheckMsg(err.message || "Erro ao verificar atualizações.");
+    } catch (err) {
+      setUpdateCheckMsg((err instanceof Error ? err.message : "") || "Erro ao verificar atualizações.");
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -353,7 +329,6 @@ export function GameDetailModal({
       });
       if (res.ok) {
         const updated = await res.json();
-        setLocalGame(updated);
         onGameUpdated?.(updated);
         setUpdateCheckMsg("✅ Jogo marcado como em dia!");
       }
@@ -376,7 +351,6 @@ export function GameDetailModal({
       });
       if (res.ok) {
         const updated = await res.json();
-        setLocalGame(updated);
         onGameUpdated?.(updated);
         setLinkInput(updated.externalLink || "");
         setIsEditingLink(!updated.externalLink);
@@ -1003,7 +977,7 @@ export function GameDetailModal({
             ) : (
               <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl text-xs text-zinc-400 flex flex-wrap items-center justify-between gap-2">
                 <span>💡 Ainda não verificaste updates oficiais da Steam para este jogo.</span>
-                <span className="text-[11px] text-purple-300 font-semibold">Clica em "Verificar Atualizações na Steam" abaixo ↘</span>
+                <span className="text-[11px] text-purple-300 font-semibold">Clica em “Verificar Atualizações na Steam” abaixo ↘</span>
               </div>
             )}
 
@@ -1053,7 +1027,7 @@ export function GameDetailModal({
                     )}
                   </div>
                 ) : (
-                  <span className="text-[11px] text-zinc-500">Clica em "Verificar Atualizações" para procurar</span>
+                  <span className="text-[11px] text-zinc-500">Clica em “Verificar Atualizações” para procurar</span>
                 )}
               </div>
             </div>

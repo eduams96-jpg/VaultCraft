@@ -10,7 +10,6 @@ import {
   Trash2,
   Check,
   CheckCircle2,
-  Sparkles,
   Trophy,
   Clock,
   Loader2,
@@ -36,7 +35,7 @@ export function BacklogGoalsModal({
 }: BacklogGoalsModalProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newTarget, setNewTarget] = useState<number>(3);
-  const [newCategory, setNewCategory] = useState("CUSTOM");
+  const newCategory = "CUSTOM";
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -86,7 +85,7 @@ export function BacklogGoalsModal({
                 </span>
               </h2>
               <p className="text-[11px] text-zinc-400">
-                Define objetivos pessoais para manter o foco e abater a tua lista de jogos e séries.
+                Define objetivos pessoais para manter o foco e abater a tua lista de jogos.
               </p>
             </div>
           </div>

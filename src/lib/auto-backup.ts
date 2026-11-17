@@ -142,7 +142,7 @@ export async function listAutoSnapshots(): Promise<AutoSnapshotMeta[]> {
   }
 }
 
-export async function readAutoSnapshot(filename: string): Promise<any> {
+export async function readAutoSnapshot(filename: string): Promise<unknown> {
   if (
     !filename ||
     path.basename(filename) !== filename ||

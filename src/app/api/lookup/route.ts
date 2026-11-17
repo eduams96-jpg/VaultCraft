@@ -209,7 +209,7 @@ export async function GET(request: Request) {
       const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanSearch)}`;
 
       const sumRes = await fetch(summaryUrl, {
-        headers: { "User-Agent": "GameTrackerVault/1.0 (gametracker@local.dev)" },
+        headers: { "User-Agent": "VaultCraftStudio/1.0 (local game library manager)" },
         signal: AbortSignal.timeout(3000),
       });
 
@@ -247,8 +247,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ results: [] });
-  } catch (error: any) {
-    if (error?.digest === "NEXT_PRERENDER_INTERRUPTED") {
+  } catch (error) {
+    if ((error as { digest?: string } | null)?.digest === "NEXT_PRERENDER_INTERRUPTED") {
       throw error;
     }
     console.error("Lookup error:", error);
