@@ -22,4 +22,4 @@ Os dados ficam em `%LOCALAPPDATA%\VaultCraft` e não são alterados pela atualiz
 ## Limitações conhecidas
 - Pacote ZIP, não um instalador; os atalhos são criados por `Criar-Atalhos.vbs`.
 - Os executáveis não estão assinados digitalmente; o Windows pode mostrar avisos de "editor desconhecido".
-- Testes end-to-end feitos no computador de desenvolvimento, com dados isolados (17 verificações: arranque, persistência, lançamento de jogos, atalhos, proteção de pedidos). **Não testado** numa instalação Windows limpa, em Windows 10, nem sem ligação à Internet.
+- Testes end-to-end feitos no computador de desenvolvimento, com dados isolados (18 verificações: arranque, persistência, lançamento de jogos, atalhos, proteção de pedidos). **Não testado** numa instalação Windows limpa, em Windows 10, nem sem ligação à Internet.
